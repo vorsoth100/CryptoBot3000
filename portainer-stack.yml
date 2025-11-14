@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  cryptobot:
+    image: cryptobot:latest
+    container_name: cryptobot
+    restart: unless-stopped
+    ports:
+      - "8779:8779"
+    volumes:
+      - /path/to/your/logs:/app/logs
+      - /path/to/your/data:/app/data
+    environment:
+      - COINBASE_API_KEY=your_coinbase_api_key_here
+      - COINBASE_API_SECRET=your_coinbase_api_secret_here
+      - ANTHROPIC_API_KEY=your_anthropic_api_key_here
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8779/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+# INSTRUCTIONS FOR PORTAINER DEPLOYMENT:
+#
+# 1. Build the Docker image on your Raspberry Pi 5:
+#    docker build -t cryptobot:latest .
+#
+# 2. In Portainer:
+#    - Go to "Stacks" > "Add Stack"
+#    - Name: cryptobot
+#    - Paste this YAML content
+#    - IMPORTANT: Update the following:
+#      * Replace /path/to/your/logs with actual path (e.g., /home/pi/cryptobot/logs)
+#      * Replace /path/to/your/data with actual path (e.g., /home/pi/cryptobot/data)
+#      * Add your actual API keys in the environment variables
+#
+# 3. Click "Deploy the stack"
+#
+# 4. Access dashboard at: http://<raspberry-pi-ip>:8779
+#
+# NOTES:
+# - Make sure ports 8779 is available on your Raspberry Pi
+# - Ensure the volume paths exist and have proper permissions
+# - For security, consider using Portainer secrets for API keys instead of plain text

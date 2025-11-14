@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CryptoBot Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <h1>🤖 CryptoBot Dashboard</h1>
+            <div class="bot-status">
+                <span id="bot-status-indicator" class="status-indicator stopped">⚫</span>
+                <span id="bot-status-text">Stopped</span>
+            </div>
+        </header>
+
+        <!-- Navigation Tabs -->
+        <nav class="tabs">
+            <button class="tab-button active" data-tab="dashboard">Dashboard</button>
+            <button class="tab-button" data-tab="config">Configuration</button>
+            <button class="tab-button" data-tab="claude">Claude AI</button>
+            <button class="tab-button" data-tab="trades">Trades</button>
+            <button class="tab-button" data-tab="performance">Performance</button>
+            <button class="tab-button" data-tab="debug">Debug</button>
+        </nav>
+
+        <!-- Dashboard Tab -->
+        <div id="dashboard-tab" class="tab-content active">
+            <!-- Bot Controls -->
+            <div class="card">
+                <h2>Bot Controls</h2>
+                <div class="controls">
+                    <button id="start-bot-btn" class="btn btn-success">Start Bot</button>
+                    <button id="stop-bot-btn" class="btn btn-danger">Stop Bot</button>
+                    <button id="refresh-btn" class="btn btn-primary">Refresh Data</button>
+                </div>
+                <div class="mode-indicator">
+                    <span id="mode-text">Mode: <strong id="mode-value">DRY RUN</strong></span>
+                </div>
+            </div>
+
+            <!-- Portfolio Overview -->
+            <div class="card">
+                <h2>Portfolio Overview</h2>
+                <div class="portfolio-grid">
+                    <div class="metric">
+                        <span class="metric-label">Available Balance</span>
+                        <span class="metric-value" id="balance-usd">$0.00</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Open Positions</span>
+                        <span class="metric-value" id="position-count">0</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Total P&L</span>
+                        <span class="metric-value" id="total-pnl">$0.00</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Win Rate</span>
+                        <span class="metric-value" id="win-rate">0%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Open Positions -->
+            <div class="card">
+                <h2>Open Positions</h2>
+                <div id="positions-container">
+                    <p class="no-data">No open positions</p>
+                </div>
+            </div>
+
+            <!-- Recent Trades -->
+            <div class="card">
+                <h2>Recent Trades (Last 10)</h2>
+                <div id="recent-trades-container">
+                    <p class="no-data">No recent trades</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Configuration Tab -->
+        <div id="config-tab" class="tab-content">
+            <div class="card">
+                <h2>Configuration Presets</h2>
+                <div class="preset-buttons">
+                    <button class="btn btn-primary" onclick="applyPreset('conservative')">Conservative</button>
+                    <button class="btn btn-primary" onclick="applyPreset('moderate')">Moderate</button>
+                    <button class="btn btn-primary" onclick="applyPreset('aggressive')">Aggressive</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>General Settings</h2>
+                <form id="config-form">
+                    <div class="form-group">
+                        <label>Dry Run Mode</label>
+                        <input type="checkbox" id="dry_run" name="dry_run">
+                        <span class="help-text">Simulate trades without executing</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Initial Capital ($)</label>
+                        <input type="number" id="initial_capital" name="initial_capital" step="0.01">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Min Trade Size ($)</label>
+                        <input type="number" id="min_trade_usd" name="min_trade_usd" step="0.01">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Max Positions</label>
+                        <input type="number" id="max_positions" name="max_positions">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Max Position %</label>
+                        <input type="number" id="max_position_pct" name="max_position_pct" step="0.01" min="0" max="1">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Stop Loss %</label>
+                        <input type="number" id="stop_loss_pct" name="stop_loss_pct" step="0.01" min="0" max="1">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Take Profit %</label>
+                        <input type="number" id="take_profit_pct" name="take_profit_pct" step="0.01" min="0">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Max Drawdown %</label>
+                        <input type="number" id="max_drawdown_pct" name="max_drawdown_pct" step="0.01" min="0" max="1">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Claude Analysis Mode</label>
+                        <select id="claude_analysis_mode" name="claude_analysis_mode">
+                            <option value="advisory">Advisory</option>
+                            <option value="semi_autonomous">Semi-Autonomous</option>
+                            <option value="autonomous">Autonomous</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Claude Confidence Threshold</label>
+                        <input type="number" id="claude_confidence_threshold" name="claude_confidence_threshold" min="0" max="100">
+                    </div>
+
+                    <button type="button" class="btn btn-success" onclick="saveConfig()">Save Configuration</button>
+                    <button type="button" class="btn btn-secondary" onclick="loadConfig()">Reload</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Claude AI Tab -->
+        <div id="claude-tab" class="tab-content">
+            <div class="card">
+                <h2>Claude AI Analysis</h2>
+                <button class="btn btn-primary" onclick="runClaudeAnalysis()">Run Analysis Now</button>
+                <div id="claude-analysis-container">
+                    <p class="no-data">No analysis available. Click "Run Analysis Now" to generate.</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Analysis History</h2>
+                <div id="claude-history-container">
+                    <p class="no-data">No analysis history</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Trades Tab -->
+        <div id="trades-tab" class="tab-content">
+            <div class="card">
+                <h2>All Trades</h2>
+                <div id="all-trades-container">
+                    <p class="no-data">No trades</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance Tab -->
+        <div id="performance-tab" class="tab-content">
+            <div class="card">
+                <h2>Performance Metrics</h2>
+                <div class="metrics-grid" id="performance-metrics">
+                    <div class="metric">
+                        <span class="metric-label">Total Trades</span>
+                        <span class="metric-value" id="perf-total-trades">0</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Win Rate</span>
+                        <span class="metric-value" id="perf-win-rate">0%</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Profit Factor</span>
+                        <span class="metric-value" id="perf-profit-factor">0.00</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Total Fees</span>
+                        <span class="metric-value" id="perf-total-fees">$0.00</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Average Win</span>
+                        <span class="metric-value" id="perf-avg-win">$0.00</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Average Loss</span>
+                        <span class="metric-value" id="perf-avg-loss">$0.00</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Debug Tab -->
+        <div id="debug-tab" class="tab-content">
+            <div class="card">
+                <h2>API Tests</h2>
+                <button class="btn btn-primary" onclick="testCoinbase()">Test Coinbase API</button>
+                <button class="btn btn-primary" onclick="testClaude()">Test Claude API</button>
+                <div id="test-results"></div>
+            </div>
+
+            <div class="card">
+                <h2>Bot Logs</h2>
+                <button class="btn btn-secondary" onclick="loadBotLogs()">Refresh Logs</button>
+                <pre id="bot-logs-container" class="log-container">Click "Refresh Logs" to load</pre>
+            </div>
+
+            <div class="card">
+                <h2>Claude Analysis Logs</h2>
+                <button class="btn btn-secondary" onclick="loadClaudeLogs()">Refresh Logs</button>
+                <pre id="claude-logs-container" class="log-container">Click "Refresh Logs" to load</pre>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

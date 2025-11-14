@@ -1,0 +1,376 @@
+/* CryptoBot Dashboard Styles */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    background: #0f1419;
+    color: #e1e8ed;
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* Header */
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    background: #1a1f26;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+}
+
+header h1 {
+    font-size: 2em;
+    color: #1da1f2;
+}
+
+.bot-status {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.2em;
+}
+
+.status-indicator {
+    font-size: 1.5em;
+}
+
+.status-indicator.running {
+    color: #17bf63;
+}
+
+.status-indicator.stopped {
+    color: #657786;
+}
+
+/* Navigation Tabs */
+.tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.tab-button {
+    padding: 12px 24px;
+    background: #1a1f26;
+    border: 2px solid #38444d;
+    color: #e1e8ed;
+    cursor: pointer;
+    border-radius: 8px;
+    font-size: 1em;
+    transition: all 0.3s;
+}
+
+.tab-button:hover {
+    background: #253341;
+    border-color: #1da1f2;
+}
+
+.tab-button.active {
+    background: #1da1f2;
+    border-color: #1da1f2;
+    color: white;
+}
+
+/* Tab Content */
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* Cards */
+.card {
+    background: #1a1f26;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+}
+
+.card h2 {
+    color: #1da1f2;
+    margin-bottom: 15px;
+    font-size: 1.5em;
+}
+
+/* Controls */
+.controls {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1em;
+    transition: all 0.3s;
+    font-weight: 600;
+}
+
+.btn-primary {
+    background: #1da1f2;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #1a8cd8;
+}
+
+.btn-success {
+    background: #17bf63;
+    color: white;
+}
+
+.btn-success:hover {
+    background: #14a556;
+}
+
+.btn-danger {
+    background: #e0245e;
+    color: white;
+}
+
+.btn-danger:hover {
+    background: #c71f53;
+}
+
+.btn-secondary {
+    background: #38444d;
+    color: #e1e8ed;
+}
+
+.btn-secondary:hover {
+    background: #4a5561;
+}
+
+.mode-indicator {
+    margin-top: 15px;
+    padding: 10px;
+    background: #253341;
+    border-radius: 5px;
+}
+
+/* Portfolio Grid */
+.portfolio-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.metric {
+    display: flex;
+    flex-direction: column;
+    padding: 15px;
+    background: #253341;
+    border-radius: 8px;
+}
+
+.metric-label {
+    color: #8899a6;
+    font-size: 0.9em;
+    margin-bottom: 5px;
+}
+
+.metric-value {
+    color: #1da1f2;
+    font-size: 1.8em;
+    font-weight: bold;
+}
+
+.metric-value.positive {
+    color: #17bf63;
+}
+
+.metric-value.negative {
+    color: #e0245e;
+}
+
+/* Positions Table */
+.positions-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+.positions-table th,
+.positions-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #38444d;
+}
+
+.positions-table th {
+    background: #253341;
+    color: #8899a6;
+    font-weight: 600;
+}
+
+.positions-table tr:hover {
+    background: #253341;
+}
+
+/* Form Styles */
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    color: #8899a6;
+    font-weight: 600;
+}
+
+.form-group input[type="text"],
+.form-group input[type="number"],
+.form-group select {
+    width: 100%;
+    padding: 10px;
+    background: #253341;
+    border: 1px solid #38444d;
+    border-radius: 5px;
+    color: #e1e8ed;
+    font-size: 1em;
+}
+
+.form-group input[type="checkbox"] {
+    width: auto;
+    margin-right: 10px;
+}
+
+.help-text {
+    display: block;
+    margin-top: 5px;
+    font-size: 0.85em;
+    color: #657786;
+}
+
+.preset-buttons {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+/* Logs */
+.log-container {
+    background: #000;
+    color: #0f0;
+    padding: 15px;
+    border-radius: 5px;
+    max-height: 500px;
+    overflow-y: auto;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9em;
+}
+
+/* No Data */
+.no-data {
+    color: #657786;
+    font-style: italic;
+    text-align: center;
+    padding: 20px;
+}
+
+/* Analysis Display */
+.analysis-content {
+    background: #253341;
+    padding: 15px;
+    border-radius: 5px;
+    margin-top: 10px;
+    white-space: pre-wrap;
+    font-family: 'Courier New', monospace;
+}
+
+/* Test Results */
+#test-results {
+    margin-top: 15px;
+    padding: 15px;
+    background: #253341;
+    border-radius: 5px;
+}
+
+.test-success {
+    color: #17bf63;
+}
+
+.test-error {
+    color: #e0245e;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    header {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .portfolio-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .controls {
+        flex-direction: column;
+    }
+
+    .btn {
+        width: 100%;
+    }
+}
+
+/* Metrics Grid */
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+/* Trades List */
+.trade-item {
+    padding: 15px;
+    background: #253341;
+    border-radius: 5px;
+    margin-bottom: 10px;
+    border-left: 4px solid #1da1f2;
+}
+
+.trade-item.profit {
+    border-left-color: #17bf63;
+}
+
+.trade-item.loss {
+    border-left-color: #e0245e;
+}
+
+.trade-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    font-weight: 600;
+}
+
+.trade-details {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    font-size: 0.9em;
+    color: #8899a6;
+}

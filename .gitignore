@@ -1,0 +1,38 @@
+# Environment
+.env
+.venv
+venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Logs
+logs/*.log
+logs/*.csv
+logs/*.json
+
+# Data
+data/config.json
+data/claude_recommendations/*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+*.tar
+
+# Temporary files
+*.tmp
+*.bak
