@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  cryptobot:
+    build:
+      context: https://github.com/vorsoth100/CryptoBot3000.git
+      dockerfile: Dockerfile
+    container_name: cryptobot
+    restart: unless-stopped
+    ports:
+      - "8779:8779"
+    volumes:
+      - cryptobot-logs:/app/logs
+      - cryptobot-data:/app/data
+    environment:
+      - COINBASE_API_KEY=${COINBASE_API_KEY}
+      - COINBASE_API_SECRET=${COINBASE_API_SECRET}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8779/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  cryptobot-logs:
+    driver: local
+  cryptobot-data:
+    driver: local
