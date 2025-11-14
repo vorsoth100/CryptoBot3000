@@ -3,7 +3,7 @@ version: '3.8'
 services:
   cryptobot:
     build:
-      context: https://github.com/vorsoth100/CryptoBot3000.git
+      context: https://github.com/vorsoth100/CryptoBot3000.git#main
       dockerfile: Dockerfile
     container_name: cryptobot
     restart: unless-stopped
