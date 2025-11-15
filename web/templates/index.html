@@ -173,6 +173,18 @@
                     </div>
 
                     <div class="form-group">
+                        <label>Coinbase Maker Fee %</label>
+                        <input type="number" id="coinbase_maker_fee" name="coinbase_maker_fee" step="0.1" min="0" max="100">
+                        <span class="help-text">Your Coinbase maker fee (limit orders). Bottom tier: 0.6%</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Coinbase Taker Fee %</label>
+                        <input type="number" id="coinbase_taker_fee" name="coinbase_taker_fee" step="0.1" min="0" max="100">
+                        <span class="help-text">Your Coinbase taker fee (market orders). Bottom tier: 0.8%</span>
+                    </div>
+
+                    <div class="form-group">
                         <label>Max Fee %</label>
                         <input type="number" id="max_fee_pct" name="max_fee_pct" step="0.1" min="0" max="100">
                         <span class="help-text">Maximum acceptable fee percentage per trade (e.g., 2.0 = 2%)</span>

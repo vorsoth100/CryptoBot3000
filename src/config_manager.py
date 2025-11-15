@@ -25,9 +25,9 @@ class ConfigManager:
         "verbose": True,
 
         # Fee Management
-        "coinbase_maker_fee": 0.005,
-        "coinbase_taker_fee": 0.02,
-        "max_fee_pct": 0.01,
+        "coinbase_maker_fee": 0.006,  # Bottom tier: 0.6%
+        "coinbase_taker_fee": 0.008,  # Bottom tier: 0.8%
+        "max_fee_pct": 0.01,  # Maximum acceptable: 1.0%
         "prefer_limit_orders": True,
         "limit_order_timeout_min": 60,
         "network_fee_buffer_usd": 10.0,

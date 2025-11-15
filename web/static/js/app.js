@@ -244,6 +244,8 @@ async function loadConfig() {
         document.getElementById('stop_loss_pct').value = config.stop_loss_pct;
         document.getElementById('take_profit_pct').value = config.take_profit_pct;
         document.getElementById('max_drawdown_pct').value = config.max_drawdown_pct;
+        document.getElementById('coinbase_maker_fee').value = config.coinbase_maker_fee * 100;  // Convert to percentage
+        document.getElementById('coinbase_taker_fee').value = config.coinbase_taker_fee * 100;  // Convert to percentage
         document.getElementById('max_fee_pct').value = config.max_fee_pct * 100;  // Convert decimal to percentage for display
         document.getElementById('claude_analysis_mode').value = config.claude_analysis_mode;
         document.getElementById('claude_confidence_threshold').value = config.claude_confidence_threshold;
@@ -264,6 +266,8 @@ async function saveConfig() {
             stop_loss_pct: parseFloat(document.getElementById('stop_loss_pct').value),
             take_profit_pct: parseFloat(document.getElementById('take_profit_pct').value),
             max_drawdown_pct: parseFloat(document.getElementById('max_drawdown_pct').value),
+            coinbase_maker_fee: parseFloat(document.getElementById('coinbase_maker_fee').value) / 100,  // Convert to decimal
+            coinbase_taker_fee: parseFloat(document.getElementById('coinbase_taker_fee').value) / 100,  // Convert to decimal
             max_fee_pct: parseFloat(document.getElementById('max_fee_pct').value) / 100,  // Convert percentage to decimal for storage
             claude_analysis_mode: document.getElementById('claude_analysis_mode').value,
             claude_confidence_threshold: parseInt(document.getElementById('claude_confidence_threshold').value)
