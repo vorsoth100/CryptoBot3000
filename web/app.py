@@ -16,6 +16,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.trading_bot import TradingBot
 from src.config_manager import ConfigManager
+from src import __version__
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'cryptobot-secret-key-change-in-production'
@@ -29,13 +30,13 @@ bot_thread = None
 @app.route('/')
 def index():
     """Main dashboard page"""
-    return render_template('index.html')
+    return render_template('index.html', version=__version__)
 
 
 @app.route('/health')
 def health():
     """Health check endpoint"""
-    return jsonify({"status": "healthy", "timestamp": datetime.now().isoformat()})
+    return jsonify({"status": "healthy", "timestamp": datetime.now().isoformat(), "version": __version__})
 
 
 @app.route('/api/status')
@@ -43,9 +44,10 @@ def get_status():
     """Get bot status"""
     if bot:
         status = bot.get_status()
+        status['version'] = __version__
         return jsonify(status)
     else:
-        return jsonify({"running": False, "error": "Bot not initialized"})
+        return jsonify({"running": False, "error": "Bot not initialized", "version": __version__})
 
 
 @app.route('/api/config', methods=['GET'])
@@ -306,7 +308,7 @@ def get_claude_logs():
 def main():
     """Run Flask server"""
     print("=" * 80)
-    print("CryptoBot Web Dashboard Starting...")
+    print(f"CryptoBot Web Dashboard v{__version__} Starting...")
     print("=" * 80)
     print("Dashboard will be available at http://localhost:8779")
     print("=" * 80)
