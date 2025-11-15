@@ -422,7 +422,7 @@ class TradingBot:
         except Exception as e:
             self.logger.error(f"Error scanning opportunities: {e}")
 
-    def _open_position(self, product_id: str, quantity: float, entry_price: float, reason: str = "Manual") -> bool:
+    def _open_position(self, product_id: str, quantity: float, entry_price: float, reason: str = "Manual") -> tuple:
         """
         Open a new position (used by web UI and manual trades)
 
@@ -433,7 +433,7 @@ class TradingBot:
             reason: Reason for opening position
 
         Returns:
-            True if successful, False otherwise
+            Tuple of (success: bool, message: str, details: dict)
         """
         try:
             # Get current balance
@@ -443,20 +443,30 @@ class TradingBot:
                 balance = self.coinbase.get_balance("USD")
                 if not balance:
                     self.logger.error("Could not get USD balance")
-                    return False
+                    return False, "Could not get USD balance", {}
 
             # Calculate position size
             position_size_usd = quantity * entry_price
+
+            # Calculate fee (use taker fee for market orders)
+            taker_fee = self.config.get("coinbase_taker_fee", 0.02)
+            entry_fee = position_size_usd * taker_fee
+            fee_pct = taker_fee * 100
 
             # Check if can open position
             can_open, check_reason = self.risk_manager.can_open_position(product_id, position_size_usd, balance)
             if not can_open:
                 self.logger.warning(f"Cannot open position: {check_reason}")
-                return False
-
-            # Calculate fee (use taker fee for market orders)
-            taker_fee = self.config.get("coinbase_taker_fee", 0.02)
-            entry_fee = position_size_usd * taker_fee
+                # Return detailed error info
+                return False, check_reason, {
+                    "attempted_size_usd": position_size_usd,
+                    "attempted_fee_pct": fee_pct,
+                    "min_trade_usd": self.config.get("min_trade_usd", 0),
+                    "max_fee_pct": self.config.get("max_fee_pct", 0) * 100,
+                    "max_positions": self.config.get("max_positions", 0),
+                    "current_balance": balance,
+                    "current_positions": len(self.risk_manager.get_all_positions())
+                }
 
             if not self.dry_run:
                 # Place market buy order
@@ -468,14 +478,14 @@ class TradingBot:
 
                 if not order:
                     self.logger.error(f"Failed to place order for {product_id}")
-                    return False
+                    return False, "Failed to place order with exchange", {}
 
             # Open position in risk manager
             success = self.risk_manager.open_position(product_id, quantity, entry_price, entry_fee)
 
             if not success:
                 self.logger.error(f"Risk manager rejected position")
-                return False
+                return False, "Risk manager rejected position", {}
 
             # Log trade
             self.performance_tracker.log_trade({
@@ -493,13 +503,14 @@ class TradingBot:
             })
 
             self.logger.info(f"✓ Opened position: {quantity:.6f} {product_id} @ ${entry_price:.2f} ({reason})")
-            return True
+            success_msg = f"Opened {quantity:.6f} {product_id} at ${entry_price:.2f} (${position_size_usd:.2f})"
+            return True, success_msg, {"quantity": quantity, "entry_price": entry_price, "size_usd": position_size_usd}
 
         except Exception as e:
             self.logger.error(f"Error opening position: {e}")
             import traceback
             traceback.print_exc()
-            return False
+            return False, f"Error: {str(e)}", {}
 
     def _execute_buy(self, recommendation: Dict):
         """Execute a buy order from Claude recommendation"""
@@ -523,7 +534,9 @@ class TradingBot:
             quantity = position_size_usd / target_price
 
             # Use the new _open_position method
-            self._open_position(product_id, quantity, target_price, "Claude recommendation")
+            success, message, details = self._open_position(product_id, quantity, target_price, "Claude recommendation")
+            if not success:
+                self.logger.warning(f"Failed to execute Claude recommendation: {message}")
 
         except Exception as e:
             self.logger.error(f"Error executing buy: {e}")

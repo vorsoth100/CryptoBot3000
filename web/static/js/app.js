@@ -244,6 +244,7 @@ async function loadConfig() {
         document.getElementById('stop_loss_pct').value = config.stop_loss_pct;
         document.getElementById('take_profit_pct').value = config.take_profit_pct;
         document.getElementById('max_drawdown_pct').value = config.max_drawdown_pct;
+        document.getElementById('max_fee_pct').value = config.max_fee_pct;
         document.getElementById('claude_analysis_mode').value = config.claude_analysis_mode;
         document.getElementById('claude_confidence_threshold').value = config.claude_confidence_threshold;
 
@@ -263,6 +264,7 @@ async function saveConfig() {
             stop_loss_pct: parseFloat(document.getElementById('stop_loss_pct').value),
             take_profit_pct: parseFloat(document.getElementById('take_profit_pct').value),
             max_drawdown_pct: parseFloat(document.getElementById('max_drawdown_pct').value),
+            max_fee_pct: parseFloat(document.getElementById('max_fee_pct').value),
             claude_analysis_mode: document.getElementById('claude_analysis_mode').value,
             claude_confidence_threshold: parseInt(document.getElementById('claude_confidence_threshold').value)
         };
@@ -524,7 +526,38 @@ async function approveTrade(coin, positionSizePct, stopLoss, takeProfit) {
             loadStatus();  // Refresh dashboard
             loadPositions();
         } else {
-            alert(`❌ Trade failed: ${result.error}`);
+            // Display detailed validation error
+            let errorMsg = `❌ Trade Validation Failed\n\n${result.error}\n`;
+
+            if (result.details) {
+                errorMsg += '\n━━━━━━━━━━━━━━━━━━━━━━━━\n';
+                errorMsg += '📋 Requirements:\n';
+                if (result.details.min_trade_usd) {
+                    errorMsg += `  • Minimum Trade Size: $${result.details.min_trade_usd.toFixed(2)}\n`;
+                }
+                if (result.details.max_fee_pct) {
+                    errorMsg += `  • Maximum Fee: ${result.details.max_fee_pct.toFixed(2)}%\n`;
+                }
+                if (result.details.max_positions) {
+                    errorMsg += `  • Max Positions: ${result.details.max_positions}\n`;
+                }
+
+                errorMsg += '\n📊 Your Trade:\n';
+                if (result.details.attempted_size_usd) {
+                    errorMsg += `  • Trade Size: $${result.details.attempted_size_usd.toFixed(2)}\n`;
+                }
+                if (result.details.attempted_fee_pct) {
+                    errorMsg += `  • Fee: ${result.details.attempted_fee_pct.toFixed(2)}%\n`;
+                }
+                if (result.details.current_positions !== undefined) {
+                    errorMsg += `  • Current Positions: ${result.details.current_positions}\n`;
+                }
+                if (result.details.current_balance) {
+                    errorMsg += `  • Available Balance: $${result.details.current_balance.toFixed(2)}\n`;
+                }
+            }
+
+            alert(errorMsg);
         }
 
     } catch (error) {
@@ -571,6 +604,38 @@ async function submitManualTrade() {
             loadStatus();  // Refresh dashboard
             loadPositions();
         } else {
+            // Display detailed validation error
+            let errorMsg = `❌ Trade Validation Failed\n\n${result.error}\n`;
+
+            if (result.details) {
+                errorMsg += '\n━━━━━━━━━━━━━━━━━━━━━━━━\n';
+                errorMsg += '📋 Requirements:\n';
+                if (result.details.min_trade_usd) {
+                    errorMsg += `  • Minimum Trade Size: $${result.details.min_trade_usd.toFixed(2)}\n`;
+                }
+                if (result.details.max_fee_pct) {
+                    errorMsg += `  • Maximum Fee: ${result.details.max_fee_pct.toFixed(2)}%\n`;
+                }
+                if (result.details.max_positions) {
+                    errorMsg += `  • Max Positions: ${result.details.max_positions}\n`;
+                }
+
+                errorMsg += '\n📊 Your Trade:\n';
+                if (result.details.attempted_size_usd) {
+                    errorMsg += `  • Trade Size: $${result.details.attempted_size_usd.toFixed(2)}\n`;
+                }
+                if (result.details.attempted_fee_pct) {
+                    errorMsg += `  • Fee: ${result.details.attempted_fee_pct.toFixed(2)}%\n`;
+                }
+                if (result.details.current_positions !== undefined) {
+                    errorMsg += `  • Current Positions: ${result.details.current_positions}\n`;
+                }
+                if (result.details.current_balance) {
+                    errorMsg += `  • Available Balance: $${result.details.current_balance.toFixed(2)}\n`;
+                }
+            }
+
+            alert(errorMsg);
             statusDiv.innerHTML = `<p style="color: #f44336;">❌ ${result.error}</p>`;
         }
 

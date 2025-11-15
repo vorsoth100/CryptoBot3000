@@ -340,15 +340,19 @@ def execute_trade():
         quantity = size_usd / current_price
 
         # Open position
-        success = bot._open_position(product_id, quantity, current_price, "Claude recommendation")
+        success, message, details = bot._open_position(product_id, quantity, current_price, "Claude recommendation")
 
         if success:
             return jsonify({
                 "success": True,
-                "message": f"Opened {quantity:.6f} {product_id} at ${current_price:.2f} (${size_usd:.2f})"
+                "message": message
             })
         else:
-            return jsonify({"success": False, "error": "Failed to open position"}), 500
+            return jsonify({
+                "success": False,
+                "error": message,
+                "details": details
+            }), 400
 
     except Exception as e:
         import traceback
@@ -381,15 +385,19 @@ def manual_trade():
         quantity = size_usd / current_price
 
         # Open position
-        success = bot._open_position(product_id, quantity, current_price, "Manual entry")
+        success, message, details = bot._open_position(product_id, quantity, current_price, "Manual entry")
 
         if success:
             return jsonify({
                 "success": True,
-                "message": f"Opened {quantity:.6f} {product_id} at ${current_price:.2f} (${size_usd:.2f})\nStop Loss: {stop_loss_pct*100:.1f}% | Take Profit: {take_profit_pct*100:.1f}%"
+                "message": f"{message}\nStop Loss: {stop_loss_pct*100:.1f}% | Take Profit: {take_profit_pct*100:.1f}%"
             })
         else:
-            return jsonify({"success": False, "error": "Failed to open position"}), 500
+            return jsonify({
+                "success": False,
+                "error": message,
+                "details": details
+            }), 400
 
     except Exception as e:
         import traceback
