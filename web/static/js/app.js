@@ -244,7 +244,7 @@ async function loadConfig() {
         document.getElementById('stop_loss_pct').value = config.stop_loss_pct;
         document.getElementById('take_profit_pct').value = config.take_profit_pct;
         document.getElementById('max_drawdown_pct').value = config.max_drawdown_pct;
-        document.getElementById('max_fee_pct').value = config.max_fee_pct;
+        document.getElementById('max_fee_pct').value = config.max_fee_pct * 100;  // Convert decimal to percentage for display
         document.getElementById('claude_analysis_mode').value = config.claude_analysis_mode;
         document.getElementById('claude_confidence_threshold').value = config.claude_confidence_threshold;
 
@@ -264,7 +264,7 @@ async function saveConfig() {
             stop_loss_pct: parseFloat(document.getElementById('stop_loss_pct').value),
             take_profit_pct: parseFloat(document.getElementById('take_profit_pct').value),
             max_drawdown_pct: parseFloat(document.getElementById('max_drawdown_pct').value),
-            max_fee_pct: parseFloat(document.getElementById('max_fee_pct').value),
+            max_fee_pct: parseFloat(document.getElementById('max_fee_pct').value) / 100,  // Convert percentage to decimal for storage
             claude_analysis_mode: document.getElementById('claude_analysis_mode').value,
             claude_confidence_threshold: parseInt(document.getElementById('claude_confidence_threshold').value)
         };

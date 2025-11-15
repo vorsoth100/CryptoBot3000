@@ -462,7 +462,7 @@ class TradingBot:
                     "attempted_size_usd": position_size_usd,
                     "attempted_fee_pct": fee_pct,
                     "min_trade_usd": self.config.get("min_trade_usd", 0),
-                    "max_fee_pct": self.config.get("max_fee_pct", 0) * 100,
+                    "max_fee_pct": self.config.get("max_fee_pct", 0) * 100,  # Convert to percentage for display
                     "max_positions": self.config.get("max_positions", 0),
                     "current_balance": balance,
                     "current_positions": len(self.risk_manager.get_all_positions())
