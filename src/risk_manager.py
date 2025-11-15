@@ -4,6 +4,8 @@ Handles position sizing, stop losses, and risk controls
 """
 
 import logging
+import os
+import json
 from typing import Dict, Optional, List, Tuple
 from datetime import datetime
 from src.utils import calculate_fees, calculate_position_size, calculate_break_even_price
@@ -52,8 +54,15 @@ class RiskManager:
         self.config = config
         self.logger = logging.getLogger("CryptoBot.RiskManager")
 
+        # Position persistence file
+        self.positions_file = config.get("positions_file", "data/positions.json")
+        os.makedirs(os.path.dirname(self.positions_file), exist_ok=True)
+
         # Track positions
         self.positions: Dict[str, Position] = {}
+
+        # Load existing positions from file
+        self._load_positions()
 
         # Track simulated capital (for dry run mode)
         self.current_capital = config.get("initial_capital", 600.0)
@@ -177,6 +186,9 @@ class RiskManager:
             f"(fee: ${entry_fee:.2f}) | Remaining capital: ${self.current_capital:.2f}"
         )
 
+        # Save positions to disk
+        self._save_positions()
+
         return True
 
     def close_position(self, product_id: str, exit_price: float,
@@ -237,6 +249,9 @@ class RiskManager:
 
         # Remove position
         del self.positions[product_id]
+
+        # Save positions to disk
+        self._save_positions()
 
         self.logger.info(
             f"[POSITION] Closed {product_id}: ${net_pnl:.2f} ({pnl_pct:.2f}%) - {reason} "
@@ -417,3 +432,49 @@ class RiskManager:
         self.daily_pnl = 0.0
         self.daily_trades = 0
         self.logger.info("Reset daily metrics")
+
+    def _load_positions(self):
+        """Load positions from disk"""
+        try:
+            if os.path.exists(self.positions_file):
+                with open(self.positions_file, 'r') as f:
+                    data = json.load(f)
+
+                for product_id, pos_data in data.items():
+                    # Recreate Position objects
+                    position = Position(
+                        product_id=pos_data['product_id'],
+                        quantity=pos_data['quantity'],
+                        entry_price=pos_data['entry_price'],
+                        entry_fee=pos_data['entry_fee'],
+                        stop_loss_price=pos_data.get('stop_loss_price'),
+                        take_profit_price=pos_data.get('take_profit_price')
+                    )
+                    position.entry_time = datetime.fromisoformat(pos_data['entry_time'])
+                    self.positions[product_id] = position
+
+                self.logger.info(f"Loaded {len(self.positions)} positions from {self.positions_file}")
+        except Exception as e:
+            self.logger.error(f"Error loading positions: {e}")
+
+    def _save_positions(self):
+        """Save positions to disk"""
+        try:
+            data = {}
+            for product_id, pos in self.positions.items():
+                data[product_id] = {
+                    'product_id': pos.product_id,
+                    'quantity': pos.quantity,
+                    'entry_price': pos.entry_price,
+                    'entry_fee': pos.entry_fee,
+                    'entry_time': pos.entry_time.isoformat(),
+                    'stop_loss_price': pos.stop_loss_price,
+                    'take_profit_price': pos.take_profit_price
+                }
+
+            with open(self.positions_file, 'w') as f:
+                json.dump(data, f, indent=2)
+
+            self.logger.debug(f"Saved {len(self.positions)} positions to {self.positions_file}")
+        except Exception as e:
+            self.logger.error(f"Error saving positions: {e}")
