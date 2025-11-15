@@ -225,6 +225,17 @@ def run_claude_analysis():
         context = bot._build_market_context()
         logger.info(f"Context built successfully with keys: {list(context.keys())}")
 
+        # Log detailed context info
+        logger.info(f"Portfolio balance: ${context.get('portfolio', {}).get('balance_usd', 0):.2f}")
+        logger.info(f"Positions: {context.get('portfolio', {}).get('position_count', 0)}")
+        logger.info(f"Market data keys: {list(context.get('market_data', {}).keys())}")
+        logger.info(f"Key prices available: {list(context.get('market_data', {}).get('key_prices', {}).keys())}")
+        logger.info(f"Screener results count: {len(context.get('screener_results', []))}")
+        if context.get('screener_results'):
+            logger.info(f"Top screener result: {context['screener_results'][0].get('product_id')} - {context['screener_results'][0].get('signal')}")
+        logger.info(f"Fear & Greed: {context.get('fear_greed', {})}")
+        logger.info(f"BTC Dominance: {context.get('btc_dominance')}")
+
         logger.info("Requesting Claude analysis...")
         analysis = bot.claude_analyst.analyze_market(context)
         logger.info(f"Analysis result type: {type(analysis)}")
