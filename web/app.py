@@ -7,9 +7,11 @@ import os
 import sys
 import json
 import threading
+import logging
 from flask import Flask, render_template, jsonify, request
 from flask_socketio import SocketIO
 from datetime import datetime
+import pytz
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -21,6 +23,17 @@ from src import __version__
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'cryptobot-secret-key-change-in-production'
 socketio = SocketIO(app, cors_allowed_origins="*")
+
+# Set timezone to US Eastern
+EASTERN = pytz.timezone('US/Eastern')
+
+# Configure logging with Eastern timezone
+class EasternFormatter(logging.Formatter):
+    def formatTime(self, record, datefmt=None):
+        dt = datetime.fromtimestamp(record.created, EASTERN)
+        if datefmt:
+            return dt.strftime(datefmt)
+        return dt.strftime('%Y-%m-%d %H:%M:%S %Z')
 
 # Global bot instance
 bot = None
@@ -36,7 +49,7 @@ def index():
 @app.route('/health')
 def health():
     """Health check endpoint"""
-    return jsonify({"status": "healthy", "timestamp": datetime.now().isoformat(), "version": __version__})
+    return jsonify({"status": "healthy", "timestamp": datetime.now(EASTERN).isoformat(), "version": __version__})
 
 
 @app.route('/api/status')
@@ -307,8 +320,14 @@ def get_claude_logs():
 
 def main():
     """Run Flask server"""
+    # Configure Flask/Werkzeug logger to use Eastern timezone
+    werkzeug_logger = logging.getLogger('werkzeug')
+    for handler in werkzeug_logger.handlers:
+        handler.setFormatter(EasternFormatter('[%(asctime)s] %(levelname)s: %(message)s'))
+
     print("=" * 80)
     print(f"CryptoBot Web Dashboard v{__version__} Starting...")
+    print(f"Timezone: US/Eastern ({datetime.now(EASTERN).strftime('%Y-%m-%d %H:%M:%S %Z')})")
     print("=" * 80)
     print("Dashboard will be available at http://localhost:8779")
     print("=" * 80)

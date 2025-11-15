@@ -38,6 +38,11 @@ class CoinbaseClient:
         """
         self.api_key = api_key or os.getenv("COINBASE_API_KEY")
         self.api_secret = api_secret or os.getenv("COINBASE_API_SECRET")
+
+        # Fix newlines in PEM key if needed (environment variables may escape them)
+        if self.api_secret and "\\n" in self.api_secret:
+            self.api_secret = self.api_secret.replace("\\n", "\n")
+
         self.base_url = self.BASE_URL_SANDBOX if sandbox else self.BASE_URL_LIVE
         self.logger = logging.getLogger("CryptoBot.Coinbase")
 
@@ -66,6 +71,12 @@ class CoinbaseClient:
         """
         import secrets
 
+        # Debug: Check if key looks like PEM format
+        self.logger.debug(f"Private key starts with: {self.api_secret[:30]}...")
+        self.logger.debug(f"Private key length: {len(self.api_secret)}")
+        self.logger.debug(f"Has BEGIN marker: {'BEGIN EC PRIVATE KEY' in self.api_secret}")
+        self.logger.debug(f"Has END marker: {'END EC PRIVATE KEY' in self.api_secret}")
+
         # Build JWT
         now = int(time.time())
         payload = {
@@ -82,14 +93,18 @@ class CoinbaseClient:
         payload["nonce"] = nonce
 
         # Sign with ES256 algorithm
-        token = jwt.encode(
-            payload,
-            self.api_secret,
-            algorithm="ES256",
-            headers={"kid": self.api_key, "nonce": nonce}
-        )
-
-        return token
+        try:
+            token = jwt.encode(
+                payload,
+                self.api_secret,
+                algorithm="ES256",
+                headers={"kid": self.api_key, "nonce": nonce}
+            )
+            return token
+        except Exception as e:
+            self.logger.error(f"JWT encoding failed: {e}")
+            self.logger.error(f"Key format issue - ensure PEM key has proper newlines")
+            raise
 
     def _generate_signature(self, timestamp: str, method: str,
                           path: str, body: str = "") -> str:
