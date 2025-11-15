@@ -218,16 +218,31 @@ def run_claude_analysis():
         return jsonify({"success": False, "error": "Bot not initialized"}), 400
 
     try:
+        import logging
+        logger = logging.getLogger("CryptoBot.Web")
+
+        logger.info("Building market context for Claude analysis...")
         context = bot._build_market_context()
+        logger.info(f"Context built successfully with keys: {list(context.keys())}")
+
+        logger.info("Requesting Claude analysis...")
         analysis = bot.claude_analyst.analyze_market(context)
+        logger.info(f"Analysis result type: {type(analysis)}")
 
         if analysis:
+            logger.info("✓ Claude analysis completed successfully")
             return jsonify({"success": True, "analysis": analysis})
         else:
-            return jsonify({"success": False, "error": "Analysis failed"}), 500
+            logger.error("✗ Claude analysis returned None")
+            return jsonify({"success": False, "error": "Analysis returned empty result"}), 500
 
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+        import traceback
+        error_details = traceback.format_exc()
+        logger = logging.getLogger("CryptoBot.Web")
+        logger.error(f"Claude analysis error: {e}")
+        logger.error(f"Traceback:\n{error_details}")
+        return jsonify({"success": False, "error": f"{str(e)} - Check logs for details"}), 500
 
 
 @app.route('/api/position/close/<product_id>', methods=['POST'])
