@@ -447,10 +447,8 @@ class RiskManager:
                         quantity=pos_data['quantity'],
                         entry_price=pos_data['entry_price'],
                         entry_fee=pos_data['entry_fee'],
-                        stop_loss_price=pos_data.get('stop_loss_price'),
-                        take_profit_price=pos_data.get('take_profit_price')
+                        timestamp=datetime.fromisoformat(pos_data['entry_time'])
                     )
-                    position.entry_time = datetime.fromisoformat(pos_data['entry_time'])
                     self.positions[product_id] = position
 
                 self.logger.info(f"Loaded {len(self.positions)} positions from {self.positions_file}")
@@ -467,9 +465,7 @@ class RiskManager:
                     'quantity': pos.quantity,
                     'entry_price': pos.entry_price,
                     'entry_fee': pos.entry_fee,
-                    'entry_time': pos.entry_time.isoformat(),
-                    'stop_loss_price': pos.stop_loss_price,
-                    'take_profit_price': pos.take_profit_price
+                    'entry_time': pos.timestamp.isoformat()
                 }
 
             with open(self.positions_file, 'w') as f:
