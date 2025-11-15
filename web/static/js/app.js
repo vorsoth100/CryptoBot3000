@@ -179,7 +179,7 @@ function displayPositions(positions) {
     let html = '<table class="positions-table"><thead><tr>';
     html += '<th>Coin</th><th>Quantity</th><th>Entry Price</th><th>Entry Value</th>';
     html += '<th>Current Price</th><th>Current Value</th><th>Fees Paid</th>';
-    html += '<th>P&L</th><th>P&L %</th><th>Stop Loss</th><th>Take Profit</th><th>Actions</th>';
+    html += '<th>P&L</th><th>P&L %</th><th>Stop Loss Value</th><th>Take Profit Value</th><th>Actions</th>';
     html += '</tr></thead><tbody>';
 
     positions.forEach(pos => {
@@ -187,6 +187,10 @@ function displayPositions(positions) {
         const currentPrice = pos.current_price || pos.entry_price;
         const entryValue = pos.quantity * pos.entry_price;
         const currentValue = pos.quantity * currentPrice;
+
+        // Calculate total values for stop loss and take profit
+        const stopLossValue = pos.stop_loss_price ? pos.quantity * pos.stop_loss_price : 0;
+        const takeProfitValue = pos.take_profit_price ? pos.quantity * pos.take_profit_price : 0;
 
         html += '<tr>';
         html += `<td><strong>${pos.product_id}</strong></td>`;
@@ -198,8 +202,8 @@ function displayPositions(positions) {
         html += `<td>${formatUSD(pos.entry_fee || 0)}</td>`;
         html += `<td class="${pnlClass}"><strong>${formatUSD(pos.net_pnl || 0)}</strong></td>`;
         html += `<td class="${pnlClass}"><strong>${(pos.pnl_pct || 0).toFixed(2)}%</strong></td>`;
-        html += `<td>${formatUSD(pos.stop_loss_price || 0)}</td>`;
-        html += `<td>${formatUSD(pos.take_profit_price || 0)}</td>`;
+        html += `<td style="color: #f44336;">${formatUSD(stopLossValue)}</td>`;
+        html += `<td style="color: #4caf50;">${formatUSD(takeProfitValue)}</td>`;
         html += `<td><button class="btn btn-danger btn-sm" onclick="closePosition('${pos.product_id}')">Close</button></td>`;
         html += '</tr>';
     });
