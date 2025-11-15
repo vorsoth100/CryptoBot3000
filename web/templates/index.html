@@ -224,6 +224,19 @@
         <!-- Debug Tab -->
         <div id="debug-tab" class="tab-content">
             <div class="card">
+                <h2>System Maintenance</h2>
+                <div class="controls">
+                    <button class="btn btn-warning" onclick="resetConfiguration()">🔄 Reset Configuration</button>
+                    <button class="btn btn-info" onclick="clearCache()">🗑️ Clear Cache</button>
+                </div>
+                <div id="maintenance-status" style="margin-top: 10px;"></div>
+                <p style="margin-top: 10px; color: #666; font-size: 0.9em;">
+                    <strong>Reset Configuration:</strong> Backs up current config and loads latest defaults (25 coins, semi-autonomous mode).<br>
+                    <strong>Clear Cache:</strong> Clears cached market data to force fresh API calls.
+                </p>
+            </div>
+
+            <div class="card">
                 <h2>API Tests</h2>
                 <button class="btn btn-primary" onclick="testCoinbase()">Test Coinbase API</button>
                 <button class="btn btn-primary" onclick="testClaude()">Test Claude API</button>

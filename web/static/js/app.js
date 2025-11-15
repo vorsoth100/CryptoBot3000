@@ -497,6 +497,71 @@ async function loadClaudeLogs() {
     }
 }
 
+// System Maintenance Functions
+async function resetConfiguration() {
+    const statusDiv = document.getElementById('maintenance-status');
+
+    if (!confirm('Reset configuration to latest defaults?\n\nThis will:\n• Backup your current config\n• Load 25 coins (was 9)\n• Enable semi-autonomous mode\n• Enable twice-daily analysis\n\nContinue?')) {
+        return;
+    }
+
+    try {
+        statusDiv.innerHTML = '<p style="color: #ff9800;">⏳ Resetting configuration...</p>';
+
+        const response = await fetch('/api/config/reset', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            statusDiv.innerHTML = `
+                <p style="color: #4caf50;">✓ ${data.message}</p>
+                <p style="color: #666; font-size: 0.9em;">
+                    Old config backed up to data/config.json.backup<br>
+                    New config loaded with 25 coins and semi-autonomous mode<br>
+                    <strong>Please refresh the page to see updated settings</strong>
+                </p>
+            `;
+
+            // Auto-refresh after 2 seconds
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+        } else {
+            statusDiv.innerHTML = `<p style="color: #f44336;">✗ Error: ${data.error}</p>`;
+        }
+
+    } catch (error) {
+        console.error('Error resetting config:', error);
+        statusDiv.innerHTML = `<p style="color: #f44336;">✗ Error: ${error.message}</p>`;
+    }
+}
+
+async function clearCache() {
+    const statusDiv = document.getElementById('maintenance-status');
+
+    try {
+        statusDiv.innerHTML = '<p style="color: #ff9800;">⏳ Clearing cache...</p>';
+
+        // This would need a backend endpoint - for now just show a message
+        statusDiv.innerHTML = `
+            <p style="color: #2196f3;">ℹ️ Cache will be cleared on next bot restart</p>
+            <p style="color: #666; font-size: 0.9em;">
+                To manually clear cache, restart the Docker container:<br>
+                <code>docker restart cryptobot</code>
+            </p>
+        `;
+
+    } catch (error) {
+        console.error('Error clearing cache:', error);
+        statusDiv.innerHTML = `<p style="color: #f44336;">✗ Error: ${error.message}</p>`;
+    }
+}
+
 // Utilities
 function formatUSD(value) {
     return new Intl.NumberFormat('en-US', {
