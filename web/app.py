@@ -235,11 +235,14 @@ def get_balance():
 @app.route('/api/screener')
 def run_screener():
     """Run market screener"""
-    if bot:
+    if not bot:
+        return jsonify([])
+
+    try:
         import logging
         logger = logging.getLogger("CryptoBot.Web")
 
-        logger.info("Running screener...")
+        logger.info("Running screener via API...")
         opportunities = bot.screener.screen_coins()
         logger.info(f"Screener found {len(opportunities)} opportunities")
 
@@ -248,8 +251,15 @@ def run_screener():
                 logger.info(f"  {i}. {opp['product_id']}: {opp['signal']} (score: {opp['score']:.1f}, confidence: {opp['confidence']:.0f}%)")
 
         return jsonify(opportunities)
-    else:
-        return jsonify([])
+
+    except Exception as e:
+        import traceback
+        import logging
+        logger = logging.getLogger("CryptoBot.Web")
+        error_details = traceback.format_exc()
+        logger.error(f"Screener error: {e}")
+        logger.error(f"Traceback:\n{error_details}")
+        return jsonify({"error": str(e), "details": "Check bot logs for full traceback"}), 500
 
 
 @app.route('/api/claude/analyze', methods=['POST'])

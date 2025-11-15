@@ -507,9 +507,29 @@ async function runScreener() {
         resultsContainer.innerHTML = '<p class="no-data">Scanning markets...</p>';
 
         const response = await fetch('/api/screener');
-        const opportunities = await response.json();
 
-        if (opportunities.length === 0) {
+        // Check if response is OK
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+            const text = await response.text();
+            console.error('Non-JSON response:', text);
+            throw new Error('Server returned an error page. Check bot logs for details.');
+        }
+
+        const data = await response.json();
+
+        // Check if response contains an error
+        if (data.error) {
+            throw new Error(data.error);
+        }
+
+        const opportunities = data;
+
+        if (!Array.isArray(opportunities) || opportunities.length === 0) {
             statusDiv.innerHTML = '<p style="color: #666;">ℹ️ No opportunities found</p>';
             resultsContainer.innerHTML = '<p class="no-data">No trading opportunities found</p>';
             return;
@@ -563,7 +583,7 @@ async function loadScreenerConfig() {
         let html = '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; margin-top: 10px;">';
 
         config.screener_coins.forEach(coin => {
-            html += `<div style="padding: 6px; background: #f5f5f5; border-radius: 4px; text-align: center; font-size: 0.9em;">${coin}</div>`;
+            html += `<div style="padding: 6px; background: #e3f2fd; border: 1px solid #2196f3; border-radius: 4px; text-align: center; font-size: 0.9em; color: #1976d2; font-weight: 500;">${coin}</div>`;
         });
 
         html += '</div>';
