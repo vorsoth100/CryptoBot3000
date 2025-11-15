@@ -30,7 +30,14 @@ class ClaudeAnalyst:
             self.logger.warning("Anthropic API key not set")
             self.client = None
         else:
-            self.client = Anthropic(api_key=api_key)
+            try:
+                # Initialize Anthropic client
+                # For anthropic>=0.39.0, proxies parameter is not supported
+                self.client = Anthropic(api_key=api_key)
+                self.logger.info("Claude API client initialized successfully")
+            except Exception as e:
+                self.logger.error(f"Failed to initialize Claude client: {e}")
+                self.client = None
 
         self.model = config.get("claude_model", "claude-sonnet-4-5-20250929")
 
