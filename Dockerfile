@@ -6,15 +6,19 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     build-essential \
     wget \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install TA-Lib
-RUN wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz && \
+# Install TA-Lib with retry and verbose output
+RUN set -ex && \
+    wget --timeout=30 --tries=3 http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz || \
+    curl -L -o ta-lib-0.4.0-src.tar.gz http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz && \
     tar -xzf ta-lib-0.4.0-src.tar.gz && \
     cd ta-lib/ && \
     ./configure --prefix=/usr && \
-    make && \
+    make -j$(nproc) && \
     make install && \
+    ldconfig && \
     cd .. && \
     rm -rf ta-lib*
 
