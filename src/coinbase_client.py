@@ -8,7 +8,6 @@ import time
 import hmac
 import hashlib
 import json
-import base64
 import requests
 import logging
 from typing import Dict, List, Optional, Any
@@ -48,7 +47,7 @@ class CoinbaseClient:
     def _generate_signature(self, timestamp: str, method: str,
                           path: str, body: str = "") -> str:
         """
-        Generate request signature for authentication (Coinbase Advanced Trade format)
+        Generate request signature for authentication (Coinbase Advanced Trade Legacy Keys)
 
         Args:
             timestamp: Unix timestamp
@@ -57,15 +56,15 @@ class CoinbaseClient:
             body: Request body (if any)
 
         Returns:
-            HMAC signature (base64 encoded)
+            HMAC signature (hex encoded - lowercase)
         """
         message = timestamp + method + path + body
         signature = hmac.new(
-            self.api_secret.encode(),
-            message.encode(),
+            self.api_secret.encode('utf-8'),
+            message.encode('utf-8'),
             hashlib.sha256
         ).digest()
-        return base64.b64encode(signature).decode()
+        return signature.hex()
 
     def _make_request(self, method: str, endpoint: str,
                      params: Optional[Dict] = None,
