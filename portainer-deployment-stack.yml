@@ -10,8 +10,9 @@ services:
     ports:
       - "8779:8779"
     volumes:
-      - cryptobot-logs:/app/logs
-      - cryptobot-data:/app/data
+      - /home/dglassford/cryptobot-data/.env:/app/.env:rw
+      - /home/dglassford/cryptobot-data/logs:/app/logs:rw
+      - /home/dglassford/cryptobot-data/data:/app/data:rw
     environment:
       - COINBASE_API_KEY=${COINBASE_API_KEY}
       - COINBASE_API_SECRET=${COINBASE_API_SECRET}
@@ -22,9 +23,3 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
-
-volumes:
-  cryptobot-logs:
-    driver: local
-  cryptobot-data:
-    driver: local
