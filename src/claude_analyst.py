@@ -6,9 +6,36 @@ Uses Anthropic Claude API for market analysis and trade recommendations
 import os
 import json
 import logging
-from typing import Dict, List, Optional
+import numpy as np
+from typing import Dict, List, Optional, Any
 from datetime import datetime
 from anthropic import Anthropic
+
+
+def convert_numpy_types(obj: Any) -> Any:
+    """
+    Recursively convert numpy types to native Python types for JSON serialization
+
+    Args:
+        obj: Object that may contain numpy types
+
+    Returns:
+        Object with numpy types converted to Python types
+    """
+    if isinstance(obj, np.integer):
+        return int(obj)
+    elif isinstance(obj, np.floating):
+        return float(obj)
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, np.bool_):
+        return bool(obj)
+    elif isinstance(obj, dict):
+        return {key: convert_numpy_types(value) for key, value in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_numpy_types(item) for item in obj]
+    else:
+        return obj
 
 
 class ClaudeAnalyst:
@@ -96,6 +123,9 @@ class ClaudeAnalyst:
     def _build_analysis_prompt(self, context: Dict) -> str:
         """Build analysis prompt from context"""
 
+        # Convert all numpy types to native Python types for JSON serialization
+        clean_context = convert_numpy_types(context)
+
         prompt = f"""You are an expert cryptocurrency trader analyzing market conditions for a bot with ${self.config.get('initial_capital', 600)} capital trading on Coinbase Advanced Trade.
 
 **CRITICAL CONSTRAINTS:**
@@ -108,25 +138,25 @@ class ClaudeAnalyst:
 - Risk tolerance: {self.config.get('claude_risk_tolerance', 'conservative')}
 
 **CURRENT PORTFOLIO:**
-{json.dumps(context.get('portfolio', {}), indent=2)}
+{json.dumps(clean_context.get('portfolio', {}), indent=2)}
 
 **MARKET DATA:**
-{json.dumps(context.get('market_data', {}), indent=2)}
+{json.dumps(clean_context.get('market_data', {}), indent=2)}
 
 **TECHNICAL INDICATORS:**
-{json.dumps(context.get('indicators', {}), indent=2)}
+{json.dumps(clean_context.get('indicators', {}), indent=2)}
 
 **SCREENER RESULTS:**
-{json.dumps(context.get('screener_results', []), indent=2)}
+{json.dumps(clean_context.get('screener_results', []), indent=2)}
 
-**FEAR & GREED INDEX:** {context.get('fear_greed', {}).get('value', 'N/A')} ({context.get('fear_greed', {}).get('classification', 'N/A')})
-**BTC DOMINANCE:** {context.get('btc_dominance', 'N/A')}%
+**FEAR & GREED INDEX:** {clean_context.get('fear_greed', {}).get('value', 'N/A')} ({clean_context.get('fear_greed', {}).get('classification', 'N/A')})
+**BTC DOMINANCE:** {clean_context.get('btc_dominance', 'N/A')}%
 
 **RECENT TRADES:**
-{json.dumps(context.get('recent_trades', []), indent=2)}
+{json.dumps(clean_context.get('recent_trades', []), indent=2)}
 
 **PERFORMANCE METRICS:**
-{json.dumps(context.get('performance', {}), indent=2)}
+{json.dumps(clean_context.get('performance', {}), indent=2)}
 
 **YOUR TASK:**
 Provide a comprehensive analysis in JSON format with:
