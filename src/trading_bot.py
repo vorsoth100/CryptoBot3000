@@ -332,14 +332,17 @@ class TradingBot:
 
         for product_id in key_coins:
             try:
-                price = self.data_collector.get_current_price(product_id, use_cache=True)
+                # Don't use cache - get fresh prices
+                price = self.data_collector.get_current_price(product_id, use_cache=False)
                 if price:
                     market_snapshot[product_id] = {
                         "price": price,
                         "timestamp": datetime.now().isoformat()
                     }
+                else:
+                    self.logger.warning(f"Could not get price for {product_id} - returned None")
             except Exception as e:
-                self.logger.debug(f"Could not get price for {product_id}: {e}")
+                self.logger.error(f"Error fetching price for {product_id}: {e}")
 
         return {
             "portfolio": {

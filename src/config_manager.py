@@ -52,19 +52,19 @@ class ConfigManager:
             "BTC-USD", "ETH-USD", "SOL-USD", "XRP-USD",
             # Layer 1s
             "ADA-USD", "AVAX-USD", "DOT-USD", "ATOM-USD", "NEAR-USD",
-            "APT-USD", "SUI-USD", "SEI-USD",
+            "APT-USD", "SUI-USD",
             # DeFi
-            "LINK-USD", "UNI-USD", "AAVE-USD", "MKR-USD",
+            "LINK-USD", "UNI-USD", "AAVE-USD",
             # Layer 2s & Scaling
-            "MATIC-USD", "ARB-USD", "OP-USD",
+            "POL-USD", "ARB-USD", "OP-USD",  # POL is new MATIC ticker
             # AI & Gaming
             "RENDER-USD", "FET-USD", "GRT-USD",
             # Trending/Momentum
-            "PEPE-USD", "WIF-USD", "BONK-USD",
+            "PEPE-USD", "DOGE-USD",
             # Established Alts
             "LTC-USD", "BCH-USD", "ETC-USD",
             # Staking/Yield
-            "TIA-USD", "INJ-USD", "RUNE-USD"
+            "TIA-USD", "INJ-USD"
         ],
         "screener_min_market_cap": 5000000000,
         "screener_min_volume_24h": 500000000,
