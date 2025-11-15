@@ -205,7 +205,17 @@ def get_balance():
 def run_screener():
     """Run market screener"""
     if bot:
+        import logging
+        logger = logging.getLogger("CryptoBot.Web")
+
+        logger.info("Running screener...")
         opportunities = bot.screener.screen_coins()
+        logger.info(f"Screener found {len(opportunities)} opportunities")
+
+        if opportunities:
+            for i, opp in enumerate(opportunities[:3], 1):
+                logger.info(f"  {i}. {opp['product_id']}: {opp['signal']} (score: {opp['score']:.1f}, confidence: {opp['confidence']:.0f}%)")
+
         return jsonify(opportunities)
     else:
         return jsonify([])
