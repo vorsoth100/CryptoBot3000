@@ -185,10 +185,20 @@ def get_performance():
 def get_balance():
     """Get account balance"""
     if bot:
-        balance = bot.coinbase.get_balance("USD")
-        return jsonify({"balance_usd": balance})
+        # In dry run mode, use simulated capital
+        if bot.dry_run:
+            # Get current capital from risk manager (tracks simulated balance)
+            balance = bot.risk_manager.current_capital
+        else:
+            # Live mode - get actual Coinbase balance
+            balance = bot.coinbase.get_balance("USD")
+
+        return jsonify({
+            "balance_usd": balance,
+            "dry_run": bot.dry_run
+        })
     else:
-        return jsonify({"balance_usd": 0})
+        return jsonify({"balance_usd": 0, "dry_run": True})
 
 
 @app.route('/api/screener')

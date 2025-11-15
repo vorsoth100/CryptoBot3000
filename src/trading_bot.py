@@ -472,7 +472,12 @@ class TradingBot:
 
     def get_status(self) -> Dict:
         """Get current bot status"""
-        balance = self.coinbase.get_balance("USD")
+        # In dry run mode, use simulated capital from risk manager
+        if self.dry_run:
+            balance = self.risk_manager.current_capital
+        else:
+            balance = self.coinbase.get_balance("USD")
+
         positions = self.risk_manager.get_all_positions()
         metrics = self.performance_tracker.calculate_metrics()
 
@@ -480,6 +485,7 @@ class TradingBot:
             "running": self.running,
             "dry_run": self.dry_run,
             "balance_usd": balance,
+            "initial_capital": self.config.get("initial_capital", 600),
             "positions": positions,
             "position_count": len(positions),
             "performance": metrics,
