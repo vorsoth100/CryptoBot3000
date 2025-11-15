@@ -586,9 +586,55 @@ async function submitManualTrade() {
     }
 
     const statusDiv = document.getElementById('manual-trade-status');
-    statusDiv.innerHTML = '<p style="color: #ff9800;">⏳ Placing trade...</p>';
+    statusDiv.innerHTML = '<p style="color: #ff9800;">⏳ Loading trade preview...</p>';
 
     try {
+        // First, get trade preview
+        const previewResponse = await fetch('/api/trade/preview', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                product_id: coin,
+                size_usd: size,
+                stop_loss_pct: stopLossPct / 100,
+                take_profit_pct: takeProfitPct / 100
+            })
+        });
+
+        const previewResult = await previewResponse.json();
+
+        if (!previewResult.success) {
+            statusDiv.innerHTML = `<p style="color: #f44336;">❌ ${previewResult.error}</p>`;
+            return;
+        }
+
+        const p = previewResult.preview;
+
+        // Show confirmation dialog with full breakdown
+        let confirmMsg = `🔍 TRADE PREVIEW\n\n`;
+        confirmMsg += `━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+        confirmMsg += `📊 Trade Details:\n`;
+        confirmMsg += `  • Asset: ${p.product_id}\n`;
+        confirmMsg += `  • Current Price: $${p.current_price.toFixed(2)}\n`;
+        confirmMsg += `  • Quantity: ${p.quantity.toFixed(6)} ${p.product_id.split('-')[0]}\n`;
+        confirmMsg += `\n💰 Cost Breakdown:\n`;
+        confirmMsg += `  • Trade Size: $${p.trade_size_usd.toFixed(2)}\n`;
+        confirmMsg += `  • Fee (${p.fee_rate_pct.toFixed(2)}%): $${p.fee_amount_usd.toFixed(2)}\n`;
+        confirmMsg += `  • Total Cost: $${p.total_cost_usd.toFixed(2)}\n`;
+        confirmMsg += `\n🎯 Risk Management:\n`;
+        confirmMsg += `  • Stop Loss: $${p.stop_loss_price.toFixed(2)} (-${p.stop_loss_pct.toFixed(1)}%)\n`;
+        confirmMsg += `  • Take Profit: $${p.take_profit_price.toFixed(2)} (+${p.take_profit_pct.toFixed(1)}%)\n`;
+        confirmMsg += `\n━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+        confirmMsg += `\nProceed with this trade?`;
+
+        if (!confirm(confirmMsg)) {
+            statusDiv.innerHTML = '<p style="color: #666;">Trade cancelled</p>';
+            return;
+        }
+
+        // User confirmed, now execute the trade
+        statusDiv.innerHTML = '<p style="color: #ff9800;">⏳ Placing trade...</p>';
+
         const response = await fetch('/api/trade/manual', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},

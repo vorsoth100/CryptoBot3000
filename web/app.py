@@ -360,6 +360,62 @@ def execute_trade():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@app.route('/api/trade/preview', methods=['POST'])
+def preview_trade():
+    """Preview a manual trade with full breakdown"""
+    if not bot:
+        return jsonify({"success": False, "error": "Bot not initialized"}), 400
+
+    try:
+        data = request.json
+        product_id = data.get('product_id')
+        size_usd = data.get('size_usd')
+        stop_loss_pct = data.get('stop_loss_pct')
+        take_profit_pct = data.get('take_profit_pct')
+
+        if not all([product_id, size_usd]):
+            return jsonify({"success": False, "error": "Missing required fields"}), 400
+
+        # Get current price
+        current_price = bot.data_collector.get_current_price(product_id)
+        if not current_price:
+            return jsonify({"success": False, "error": "Could not get current price"}), 400
+
+        # Calculate trade breakdown
+        taker_fee_rate = bot.config.get("coinbase_taker_fee", 0.008)
+        fee_amount = size_usd * taker_fee_rate
+        quantity = size_usd / current_price
+
+        # Calculate stop loss and take profit prices
+        stop_loss_price = current_price * (1 - stop_loss_pct) if stop_loss_pct else None
+        take_profit_price = current_price * (1 + take_profit_pct) if take_profit_pct else None
+
+        # Total cost (trade size + fees)
+        total_cost = size_usd + fee_amount
+
+        return jsonify({
+            "success": True,
+            "preview": {
+                "product_id": product_id,
+                "current_price": current_price,
+                "trade_size_usd": size_usd,
+                "quantity": quantity,
+                "fee_rate_pct": taker_fee_rate * 100,
+                "fee_amount_usd": fee_amount,
+                "total_cost_usd": total_cost,
+                "stop_loss_price": stop_loss_price,
+                "take_profit_price": take_profit_price,
+                "stop_loss_pct": stop_loss_pct * 100 if stop_loss_pct else 0,
+                "take_profit_pct": take_profit_pct * 100 if take_profit_pct else 0
+            }
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @app.route('/api/trade/manual', methods=['POST'])
 def manual_trade():
     """Execute a manual trade"""
