@@ -524,7 +524,7 @@ async function approveTrade(coin, positionSizePct, stopLoss, takeProfit) {
         if (result.success) {
             alert(`✅ Trade executed successfully!\n\n${result.message}`);
             loadStatus();  // Refresh dashboard
-            loadPositions();
+            loadDashboard();
         } else {
             // Display detailed validation error
             let errorMsg = `❌ Trade Validation Failed\n\n${result.error}\n`;
@@ -602,7 +602,7 @@ async function submitManualTrade() {
             statusDiv.innerHTML = `<p style="color: #4caf50;">✅ ${result.message}</p>`;
             document.getElementById('manual-trade-form').reset();
             loadStatus();  // Refresh dashboard
-            loadPositions();
+            loadDashboard();
         } else {
             // Display detailed validation error
             let errorMsg = `❌ Trade Validation Failed\n\n${result.error}\n`;
