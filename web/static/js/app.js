@@ -497,6 +497,83 @@ async function loadClaudeLogs() {
     }
 }
 
+// Screener Functions
+async function runScreener() {
+    const statusDiv = document.getElementById('screener-status');
+    const resultsContainer = document.getElementById('screener-results-container');
+
+    try {
+        statusDiv.innerHTML = '<p style="color: #ff9800;">⏳ Running screener...</p>';
+        resultsContainer.innerHTML = '<p class="no-data">Scanning markets...</p>';
+
+        const response = await fetch('/api/screener');
+        const opportunities = await response.json();
+
+        if (opportunities.length === 0) {
+            statusDiv.innerHTML = '<p style="color: #666;">ℹ️ No opportunities found</p>';
+            resultsContainer.innerHTML = '<p class="no-data">No trading opportunities found</p>';
+            return;
+        }
+
+        statusDiv.innerHTML = `<p style="color: #4caf50;">✓ Found ${opportunities.length} opportunities</p>`;
+
+        // Display results in a table
+        let html = '<table style="width: 100%; border-collapse: collapse;">';
+        html += '<thead><tr style="background: #f5f5f5;">';
+        html += '<th style="padding: 8px; text-align: left;">Coin</th>';
+        html += '<th style="padding: 8px; text-align: left;">Signal</th>';
+        html += '<th style="padding: 8px; text-align: right;">Score</th>';
+        html += '<th style="padding: 8px; text-align: right;">Confidence</th>';
+        html += '<th style="padding: 8px; text-align: right;">Price</th>';
+        html += '</tr></thead><tbody>';
+
+        opportunities.forEach((opp, index) => {
+            const signalColor = opp.signal === 'strong_buy' ? '#4caf50' :
+                               opp.signal === 'buy' ? '#8bc34a' :
+                               opp.signal === 'neutral' ? '#ff9800' : '#f44336';
+
+            html += `<tr style="border-bottom: 1px solid #eee;">`;
+            html += `<td style="padding: 8px;"><strong>${opp.product_id}</strong></td>`;
+            html += `<td style="padding: 8px; color: ${signalColor};">${opp.signal.toUpperCase()}</td>`;
+            html += `<td style="padding: 8px; text-align: right;">${opp.score.toFixed(1)}</td>`;
+            html += `<td style="padding: 8px; text-align: right;">${opp.confidence.toFixed(0)}%</td>`;
+            html += `<td style="padding: 8px; text-align: right;">$${opp.price.toFixed(2)}</td>`;
+            html += `</tr>`;
+        });
+
+        html += '</tbody></table>';
+        resultsContainer.innerHTML = html;
+
+    } catch (error) {
+        console.error('Error running screener:', error);
+        statusDiv.innerHTML = `<p style="color: #f44336;">✗ Error: ${error.message}</p>`;
+        resultsContainer.innerHTML = '<p class="no-data">Error loading results</p>';
+    }
+}
+
+async function loadScreenerConfig() {
+    try {
+        const response = await fetch('/api/config');
+        const config = await response.json();
+
+        document.getElementById('screener-mode').textContent = config.screener_mode || 'breakouts';
+        document.getElementById('screener-coin-count').textContent = config.screener_coins.length || 0;
+
+        const coinsList = document.getElementById('screener-coins-list');
+        let html = '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; margin-top: 10px;">';
+
+        config.screener_coins.forEach(coin => {
+            html += `<div style="padding: 6px; background: #f5f5f5; border-radius: 4px; text-align: center; font-size: 0.9em;">${coin}</div>`;
+        });
+
+        html += '</div>';
+        coinsList.innerHTML = html;
+
+    } catch (error) {
+        console.error('Error loading screener config:', error);
+    }
+}
+
 // System Maintenance Functions
 async function resetConfiguration() {
     const statusDiv = document.getElementById('maintenance-status');

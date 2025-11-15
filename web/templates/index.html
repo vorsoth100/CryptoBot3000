@@ -23,6 +23,7 @@
         <!-- Navigation Tabs -->
         <nav class="tabs">
             <button class="tab-button active" data-tab="dashboard">Dashboard</button>
+            <button class="tab-button" data-tab="screener">Screener</button>
             <button class="tab-button" data-tab="config">Configuration</button>
             <button class="tab-button" data-tab="claude">Claude AI</button>
             <button class="tab-button" data-tab="trades">Trades</button>
@@ -81,6 +82,36 @@
                 <h2>Recent Trades (Last 10)</h2>
                 <div id="recent-trades-container">
                     <p class="no-data">No recent trades</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Screener Tab -->
+        <div id="screener-tab" class="tab-content">
+            <div class="card">
+                <h2>Market Screener</h2>
+                <div class="controls">
+                    <button class="btn btn-primary" onclick="runScreener()">🔍 Run Screener</button>
+                    <button class="btn btn-secondary" onclick="loadScreenerConfig()">⚙️ View Configuration</button>
+                </div>
+                <div id="screener-status" style="margin-top: 10px;"></div>
+            </div>
+
+            <div class="card">
+                <h2>Screener Configuration</h2>
+                <div id="screener-config-container">
+                    <p><strong>Mode:</strong> <span id="screener-mode">Loading...</span></p>
+                    <p><strong>Coins Monitored:</strong> <span id="screener-coin-count">Loading...</span></p>
+                    <div id="screener-coins-list" style="margin-top: 10px;">
+                        <p class="no-data">Click "View Configuration" to load</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Screener Results</h2>
+                <div id="screener-results-container">
+                    <p class="no-data">Click "Run Screener" to find opportunities</p>
                 </div>
             </div>
         </div>
