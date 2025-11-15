@@ -105,9 +105,30 @@ class DataCollector:
         if self._is_cache_valid(cache_key):
             return self.cache[cache_key]
 
+        # Coinbase limits to 350 candles per request
+        # Adjust days based on granularity to stay under limit
+        max_candles = 350
+        granularity_hours = {
+            "ONE_MINUTE": 1/60,
+            "FIVE_MINUTE": 5/60,
+            "FIFTEEN_MINUTE": 15/60,
+            "THIRTY_MINUTE": 30/60,
+            "ONE_HOUR": 1,
+            "TWO_HOUR": 2,
+            "SIX_HOUR": 6,
+            "ONE_DAY": 24
+        }
+
+        hours_per_candle = granularity_hours.get(granularity, 1)
+        max_hours = max_candles * hours_per_candle
+        max_days = max_hours / 24
+
+        # Use the smaller of requested days or max allowed days
+        actual_days = min(days, int(max_days))
+
         # Calculate start/end times as Unix timestamps
         end = datetime.utcnow()
-        start = end - timedelta(days=days)
+        start = end - timedelta(days=actual_days)
 
         # Convert to Unix timestamps (seconds since epoch)
         start_unix = int(start.timestamp())
