@@ -643,20 +643,26 @@ async function submitManualTrade() {
 
         const p = previewResult.preview;
 
+        // Calculate total values at stop loss and take profit
+        const stopLossValue = p.quantity * p.stop_loss_price;
+        const takeProfitValue = p.quantity * p.take_profit_price;
+
         // Show confirmation dialog with full breakdown
         let confirmMsg = `🔍 TRADE PREVIEW\n\n`;
         confirmMsg += `━━━━━━━━━━━━━━━━━━━━━━━━\n`;
         confirmMsg += `📊 Trade Details:\n`;
         confirmMsg += `  • Asset: ${p.product_id}\n`;
-        confirmMsg += `  • Current Price: $${p.current_price.toFixed(2)}\n`;
+        confirmMsg += `  • Current Price: $${p.current_price.toFixed(2)} per coin\n`;
         confirmMsg += `  • Quantity: ${p.quantity.toFixed(6)} ${p.product_id.split('-')[0]}\n`;
         confirmMsg += `\n💰 Cost Breakdown:\n`;
         confirmMsg += `  • Trade Size: $${p.trade_size_usd.toFixed(2)}\n`;
         confirmMsg += `  • Fee (${p.fee_rate_pct.toFixed(2)}%): $${p.fee_amount_usd.toFixed(2)}\n`;
         confirmMsg += `  • Total Cost: $${p.total_cost_usd.toFixed(2)}\n`;
         confirmMsg += `\n🎯 Risk Management:\n`;
-        confirmMsg += `  • Stop Loss: $${p.stop_loss_price.toFixed(2)} (-${p.stop_loss_pct.toFixed(1)}%)\n`;
-        confirmMsg += `  • Take Profit: $${p.take_profit_price.toFixed(2)} (+${p.take_profit_pct.toFixed(1)}%)\n`;
+        confirmMsg += `  • Stop Loss Price: $${p.stop_loss_price.toFixed(2)}/coin\n`;
+        confirmMsg += `    └─ Total Value: $${stopLossValue.toFixed(2)} (-${p.stop_loss_pct.toFixed(1)}%)\n`;
+        confirmMsg += `  • Take Profit Price: $${p.take_profit_price.toFixed(2)}/coin\n`;
+        confirmMsg += `    └─ Total Value: $${takeProfitValue.toFixed(2)} (+${p.take_profit_pct.toFixed(1)}%)\n`;
         confirmMsg += `\n━━━━━━━━━━━━━━━━━━━━━━━━\n`;
         confirmMsg += `\nProceed with this trade?`;
 
