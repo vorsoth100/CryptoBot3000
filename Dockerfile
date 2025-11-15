@@ -6,28 +6,27 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     build-essential \
     wget \
-    curl \
-    git \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Install TA-Lib from GitHub mirror (more reliable than sourceforge)
-RUN set -ex && \
-    cd /tmp && \
-    git clone --depth 1 https://github.com/TA-Lib/ta-lib-python.git && \
-    cd ta-lib-python && \
-    curl -L https://github.com/ta-lib/ta-lib/releases/download/v0.4.0/ta-lib-0.4.0-src.tar.gz -o ta-lib-0.4.0-src.tar.gz && \
+# Install TA-Lib from a reliable mirror with detailed error checking
+RUN wget https://sourceforge.net/projects/ta-lib/files/ta-lib/0.4.0/ta-lib-0.4.0-src.tar.gz/download -O ta-lib-0.4.0-src.tar.gz && \
     tar -xzf ta-lib-0.4.0-src.tar.gz && \
     cd ta-lib && \
-    ./configure --prefix=/usr && \
-    make -j$(nproc) && \
+    ./configure --prefix=/usr --build=aarch64-unknown-linux-gnu && \
+    make && \
     make install && \
-    ldconfig && \
-    cd /tmp && \
-    rm -rf ta-lib-python
+    cd .. && \
+    rm -rf ta-lib ta-lib-0.4.0-src.tar.gz && \
+    ldconfig
 
 # Copy requirements
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+
+# Install Python packages
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir numpy && \
+    pip install --no-cache-dir -r requirements.txt
 
 # Copy application
 COPY . .
