@@ -377,17 +377,39 @@ def test_claude():
 
 @app.route('/api/logs/bot')
 def get_bot_logs():
-    """Get bot logs"""
+    """Get bot logs (last 2 days)"""
     try:
+        from datetime import datetime, timedelta
         log_file = "logs/bot.log"
+
         if os.path.exists(log_file):
             with open(log_file, 'r') as f:
-                # Get last 100 lines
                 lines = f.readlines()
-                last_lines = lines[-100:]
-                return jsonify({"logs": ''.join(last_lines)})
+
+            # Filter for last 2 days
+            cutoff_time = datetime.now(EASTERN) - timedelta(days=2)
+            filtered_lines = []
+
+            for line in lines:
+                # Try to parse timestamp from line (format: YYYY-MM-DD HH:MM:SS EST)
+                try:
+                    if len(line) > 19:
+                        timestamp_str = line[:19]  # Extract "YYYY-MM-DD HH:MM:SS"
+                        log_time = datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S')
+                        log_time = EASTERN.localize(log_time)
+
+                        if log_time >= cutoff_time:
+                            filtered_lines.append(line)
+                except:
+                    # If timestamp parsing fails, include the line anyway
+                    filtered_lines.append(line)
+
+            # Reverse so newest is first
+            filtered_lines.reverse()
+
+            return jsonify({"logs": filtered_lines})
         else:
-            return jsonify({"logs": "No logs available"})
+            return jsonify({"logs": []})
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500

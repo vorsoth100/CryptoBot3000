@@ -70,7 +70,7 @@ class ConfigManager:
         "screener_min_volume_24h": 500000000,
         "screener_max_results": 10,
         "screener_run_schedule": "daily",
-        "screener_cache_minutes": 60,
+        "screener_cache_minutes": 120,  # Increased to reduce CoinGecko API calls
 
         # Technical Indicators
         "use_talib": True,

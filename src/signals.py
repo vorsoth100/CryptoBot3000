@@ -36,7 +36,7 @@ class SignalGenerator:
             RSI series
         """
         period = period or self.config.get("rsi_period", 14)
-        return talib.RSI(df['close'].values, timeperiod=period)
+        return talib.RSI(df['close'].values.astype(np.float64), timeperiod=period)
 
     def calculate_macd(self, df: pd.DataFrame) -> tuple:
         """
@@ -53,7 +53,7 @@ class SignalGenerator:
         signal = self.config.get("macd_signal", 9)
 
         macd, macd_signal, macd_hist = talib.MACD(
-            df['close'].values,
+            df['close'].values.astype(np.float64),
             fastperiod=fast,
             slowperiod=slow,
             signalperiod=signal
@@ -75,7 +75,7 @@ class SignalGenerator:
         std = self.config.get("bb_std", 2.0)
 
         upper, middle, lower = talib.BBANDS(
-            df['close'].values,
+            df['close'].values.astype(np.float64),
             timeperiod=period,
             nbdevup=std,
             nbdevdn=std
@@ -96,8 +96,8 @@ class SignalGenerator:
         short_period = self.config.get("ma_short", 50)
         long_period = self.config.get("ma_long", 200)
 
-        ma_short = talib.SMA(df['close'].values, timeperiod=short_period)
-        ma_long = talib.SMA(df['close'].values, timeperiod=long_period)
+        ma_short = talib.SMA(df['close'].values.astype(np.float64), timeperiod=short_period)
+        ma_long = talib.SMA(df['close'].values.astype(np.float64), timeperiod=long_period)
 
         return ma_short, ma_long
 
@@ -152,7 +152,7 @@ class SignalGenerator:
             df['ma_short'], df['ma_long'] = self.calculate_moving_averages(df)
 
             # Volume SMA
-            df['volume_sma'] = talib.SMA(df['volume'].values, timeperiod=20)
+            df['volume_sma'] = talib.SMA(df['volume'].values.astype(np.float64), timeperiod=20)
 
             return df
 

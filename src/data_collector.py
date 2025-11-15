@@ -27,9 +27,28 @@ class DataCollector:
         "XRP": "ripple",
         "ADA": "cardano",
         "MATIC": "matic-network",
+        "POL": "matic-network",  # POL is the new MATIC ticker
         "LINK": "chainlink",
         "DOT": "polkadot",
-        "AVAX": "avalanche-2"
+        "AVAX": "avalanche-2",
+        "ATOM": "cosmos",
+        "NEAR": "near",
+        "APT": "aptos",
+        "SUI": "sui",
+        "UNI": "uniswap",
+        "AAVE": "aave",
+        "ARB": "arbitrum",
+        "OP": "optimism",
+        "RENDER": "render-token",
+        "FET": "fetch-ai",
+        "GRT": "the-graph",
+        "PEPE": "pepe",
+        "DOGE": "dogecoin",
+        "LTC": "litecoin",
+        "BCH": "bitcoin-cash",
+        "ETC": "ethereum-classic",
+        "TIA": "celestia",
+        "INJ": "injective-protocol"
     }
 
     def __init__(self, coinbase_client, cache_minutes: int = 60):
@@ -44,8 +63,8 @@ class DataCollector:
         self.cache_minutes = cache_minutes
         self.logger = logging.getLogger("CryptoBot.DataCollector")
 
-        # Rate limiters
-        self.coingecko_limiter = RateLimiter(calls_per_minute=10)
+        # Rate limiters (reduced to 5 calls/min to avoid 429 errors)
+        self.coingecko_limiter = RateLimiter(calls_per_minute=5)
 
         # Cache
         self.cache = {}

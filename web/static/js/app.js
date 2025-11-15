@@ -659,6 +659,108 @@ async function clearCache() {
     }
 }
 
+// Live Logs Tab
+let autoRefreshInterval = null;
+
+async function loadLiveLogs() {
+    try {
+        const response = await fetch('/api/logs/bot');
+        const data = await response.json();
+
+        if (data.error) {
+            document.getElementById('live-logs-container').textContent = `Error loading logs: ${data.error}`;
+            return;
+        }
+
+        const logLines = data.logs;
+        const container = document.getElementById('live-logs-container');
+        const errorsOnly = document.getElementById('filter-errors-only').checked;
+        const showWarnings = document.getElementById('filter-warnings').checked;
+
+        if (!logLines || logLines.length === 0) {
+            container.innerHTML = '<div style="color: #888;">No logs available</div>';
+            return;
+        }
+
+        let html = '';
+
+        logLines.forEach(line => {
+            // Apply filters
+            if (errorsOnly && !line.includes('ERROR')) {
+                return;
+            }
+            if (!showWarnings && line.includes('WARNING')) {
+                return;
+            }
+
+            // Color code based on log level
+            let color = '#d4d4d4'; // default
+            let bgColor = 'transparent';
+
+            if (line.includes('ERROR')) {
+                color = '#ff6b6b';
+                bgColor = '#3d1f1f';
+            } else if (line.includes('WARNING')) {
+                color = '#ffa500';
+            } else if (line.includes('INFO')) {
+                color = '#4dabf7';
+            } else if (line.includes('Starting') || line.includes('auto-started') || line.includes('CryptoBot v')) {
+                color = '#ff9800';  // Orange for bot starts
+                bgColor = '#3d2e1f';
+            }
+
+            const escapedLine = line
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+
+            html += `<div style="color: ${color}; background: ${bgColor}; padding: 2px 0; margin: 1px 0;">${escapedLine}</div>`;
+        });
+
+        container.innerHTML = html;
+
+        // Auto-scroll to top (newest logs)
+        container.scrollTop = 0;
+
+    } catch (error) {
+        console.error('Error loading logs:', error);
+        document.getElementById('live-logs-container').textContent = `Error: ${error.message}`;
+    }
+}
+
+function toggleAutoRefresh() {
+    const button = document.getElementById('auto-refresh-text');
+
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+        autoRefreshInterval = null;
+        button.textContent = 'Resume Auto-Refresh';
+    } else {
+        loadLiveLogs(); // Load immediately
+        autoRefreshInterval = setInterval(loadLiveLogs, 5000); // Refresh every 5 seconds
+        button.textContent = 'Pause Auto-Refresh';
+    }
+}
+
+// Start auto-refresh when logs tab is opened
+document.addEventListener('DOMContentLoaded', function() {
+    const tabButtons = document.querySelectorAll('.tab-button');
+    tabButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const tab = this.getAttribute('data-tab');
+            if (tab === 'logs' && !autoRefreshInterval) {
+                loadLiveLogs();
+                autoRefreshInterval = setInterval(loadLiveLogs, 5000);
+                document.getElementById('auto-refresh-text').textContent = 'Pause Auto-Refresh';
+            } else if (tab !== 'logs' && autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+                autoRefreshInterval = null;
+                document.getElementById('auto-refresh-text').textContent = 'Resume Auto-Refresh';
+            }
+        });
+    });
+});
+
 // Utilities
 function formatUSD(value) {
     return new Intl.NumberFormat('en-US', {
