@@ -330,6 +330,8 @@ def get_claude_logs():
 
 def main():
     """Run Flask server"""
+    global bot, bot_thread
+
     # Configure Flask/Werkzeug logger to use Eastern timezone
     werkzeug_logger = logging.getLogger('werkzeug')
     for handler in werkzeug_logger.handlers:
@@ -340,6 +342,18 @@ def main():
     print(f"Timezone: US/Eastern ({datetime.now(EASTERN).strftime('%Y-%m-%d %H:%M:%S %Z')})")
     print("=" * 80)
     print("Dashboard will be available at http://localhost:8779")
+    print("=" * 80)
+
+    # Auto-start the bot
+    try:
+        bot = TradingBot()
+        bot_thread = threading.Thread(target=bot.start)
+        bot_thread.daemon = True
+        bot_thread.start()
+        print("✓ Trading bot auto-started")
+    except Exception as e:
+        print(f"✗ Failed to auto-start bot: {e}")
+
     print("=" * 80)
 
     socketio.run(app, host='0.0.0.0', port=8779, debug=False, allow_unsafe_werkzeug=True)

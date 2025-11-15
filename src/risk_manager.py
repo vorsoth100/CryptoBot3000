@@ -55,6 +55,10 @@ class RiskManager:
         # Track positions
         self.positions: Dict[str, Position] = {}
 
+        # Track simulated capital (for dry run mode)
+        self.current_capital = config.get("initial_capital", 600.0)
+        self.initial_capital = self.current_capital
+
         # Track daily metrics
         self.daily_pnl = 0.0
         self.daily_trades = 0
@@ -163,9 +167,14 @@ class RiskManager:
         )
 
         self.positions[product_id] = position
+
+        # Deduct cost from simulated capital (entry cost + fees)
+        position_cost = (quantity * entry_price) + entry_fee
+        self.current_capital -= position_cost
+
         self.logger.info(
             f"[POSITION] Opened {product_id}: {quantity} @ ${entry_price:.2f} "
-            f"(fee: ${entry_fee:.2f})"
+            f"(fee: ${entry_fee:.2f}) | Remaining capital: ${self.current_capital:.2f}"
         )
 
         return True
@@ -213,20 +222,25 @@ class RiskManager:
             "reason": reason
         }
 
+        # Add proceeds back to simulated capital (exit value - fees)
+        proceeds = exit_value - exit_fee
+        self.current_capital += proceeds
+
         # Update daily P&L
         self.daily_pnl += net_pnl
         self.daily_trades += 1
 
         # Update drawdown if loss
         if net_pnl < 0:
-            loss_pct = abs(net_pnl) / self.config.get("initial_capital", 600.0)
+            loss_pct = abs(net_pnl) / self.initial_capital
             self.total_drawdown += loss_pct
 
         # Remove position
         del self.positions[product_id]
 
         self.logger.info(
-            f"[POSITION] Closed {product_id}: ${net_pnl:.2f} ({pnl_pct:.2f}%) - {reason}"
+            f"[POSITION] Closed {product_id}: ${net_pnl:.2f} ({pnl_pct:.2f}%) - {reason} "
+            f"| Current capital: ${self.current_capital:.2f}"
         )
 
         return pnl_details
