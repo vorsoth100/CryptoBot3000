@@ -367,9 +367,15 @@ class CoinbaseClient:
             Current price
         """
         ticker = self.get_ticker(product_id)
-        if ticker and "price" in ticker:
-            return float(ticker["price"])
-        return None
+        if ticker:
+            if "price" in ticker:
+                return float(ticker["price"])
+            else:
+                self.logger.error(f"Ticker response for {product_id} missing 'price' field. Response: {ticker}")
+                return None
+        else:
+            self.logger.error(f"get_ticker returned None for {product_id}")
+            return None
 
     def get_candles(self, product_id: str, granularity: str = "ONE_HOUR",
                    start: Optional[str] = None, end: Optional[str] = None) -> Optional[List[Dict]]:
