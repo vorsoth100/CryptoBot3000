@@ -311,6 +311,92 @@ def run_claude_analysis():
         return jsonify({"success": False, "error": f"{str(e)} - Check logs for details"}), 500
 
 
+@app.route('/api/trade/execute', methods=['POST'])
+def execute_trade():
+    """Execute a Claude-recommended trade"""
+    if not bot:
+        return jsonify({"success": False, "error": "Bot not initialized"}), 400
+
+    try:
+        data = request.json
+        product_id = data.get('product_id')
+        position_size_pct = data.get('position_size_pct')
+        stop_loss = data.get('stop_loss')
+        take_profit = data.get('take_profit')
+
+        if not all([product_id, position_size_pct, stop_loss, take_profit]):
+            return jsonify({"success": False, "error": "Missing required fields"}), 400
+
+        # Get current price
+        current_price = bot.data_collector.get_current_price(product_id)
+        if not current_price:
+            return jsonify({"success": False, "error": "Could not get current price"}), 400
+
+        # Calculate position size in USD
+        capital = bot.risk_manager.current_capital
+        size_usd = capital * position_size_pct
+
+        # Calculate quantity
+        quantity = size_usd / current_price
+
+        # Open position
+        success = bot._open_position(product_id, quantity, current_price, "Claude recommendation")
+
+        if success:
+            return jsonify({
+                "success": True,
+                "message": f"Opened {quantity:.6f} {product_id} at ${current_price:.2f} (${size_usd:.2f})"
+            })
+        else:
+            return jsonify({"success": False, "error": "Failed to open position"}), 500
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/trade/manual', methods=['POST'])
+def manual_trade():
+    """Execute a manual trade"""
+    if not bot:
+        return jsonify({"success": False, "error": "Bot not initialized"}), 400
+
+    try:
+        data = request.json
+        product_id = data.get('product_id')
+        size_usd = data.get('size_usd')
+        stop_loss_pct = data.get('stop_loss_pct')
+        take_profit_pct = data.get('take_profit_pct')
+
+        if not all([product_id, size_usd, stop_loss_pct, take_profit_pct]):
+            return jsonify({"success": False, "error": "Missing required fields"}), 400
+
+        # Get current price
+        current_price = bot.data_collector.get_current_price(product_id)
+        if not current_price:
+            return jsonify({"success": False, "error": "Could not get current price"}), 400
+
+        # Calculate quantity
+        quantity = size_usd / current_price
+
+        # Open position
+        success = bot._open_position(product_id, quantity, current_price, "Manual entry")
+
+        if success:
+            return jsonify({
+                "success": True,
+                "message": f"Opened {quantity:.6f} {product_id} at ${current_price:.2f} (${size_usd:.2f})\nStop Loss: {stop_loss_pct*100:.1f}% | Take Profit: {take_profit_pct*100:.1f}%"
+            })
+        else:
+            return jsonify({"success": False, "error": "Failed to open position"}), 500
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @app.route('/api/position/close/<product_id>', methods=['POST'])
 def close_position(product_id):
     """Manually close a position"""

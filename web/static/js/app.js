@@ -366,16 +366,19 @@ async function closePosition(productId) {
 // Claude AI
 async function runClaudeAnalysis() {
     try {
-        document.getElementById('claude-analysis-container').innerHTML = '<p>Running analysis...</p>';
+        document.getElementById('claude-analysis-container').innerHTML = '<p>🔄 Running analysis...</p>';
+        document.getElementById('claude-recommendations-container').innerHTML = '<p>Analyzing market...</p>';
 
         const response = await fetch('/api/claude/analyze', {method: 'POST'});
         const result = await response.json();
 
         if (result.success) {
             displayClaudeAnalysis(result.analysis);
+            displayTradeRecommendations(result.analysis);
         } else {
             document.getElementById('claude-analysis-container').innerHTML =
                 `<p class="test-error">Error: ${result.error}</p>`;
+            document.getElementById('claude-recommendations-container').innerHTML = '<p class="no-data">Analysis failed</p>';
         }
 
     } catch (error) {
@@ -387,8 +390,193 @@ async function runClaudeAnalysis() {
 
 function displayClaudeAnalysis(analysis) {
     const container = document.getElementById('claude-analysis-container');
-    const content = JSON.stringify(analysis, null, 2);
-    container.innerHTML = `<div class="analysis-content">${content}</div>`;
+
+    try {
+        // Parse the raw_analysis JSON string
+        let parsed = analysis;
+        if (analysis.raw_analysis) {
+            const jsonMatch = analysis.raw_analysis.match(/```json\n([\s\S]*?)\n```/);
+            if (jsonMatch) {
+                parsed = JSON.parse(jsonMatch[1]);
+            }
+        }
+
+        const assessment = parsed.market_assessment || {};
+        const warnings = parsed.risk_warnings || [];
+
+        let html = '<div style="background: #f5f5f5; padding: 15px; border-radius: 4px;">';
+        html += `<h3>Market Regime: <span style="color: #2196f3;">${assessment.regime || 'Unknown'}</span></h3>`;
+        html += `<p><strong>Confidence:</strong> ${assessment.confidence || 0}%</p>`;
+        html += `<p><strong>Risk Level:</strong> ${assessment.risk_level || 'Unknown'}</p>`;
+
+        if (assessment.key_factors && assessment.key_factors.length > 0) {
+            html += '<h4>Key Factors:</h4><ul>';
+            assessment.key_factors.forEach(factor => {
+                html += `<li>${factor}</li>`;
+            });
+            html += '</ul>';
+        }
+
+        if (warnings.length > 0) {
+            html += '<h4 style="color: #f44336;">⚠️ Risk Warnings:</h4><ul>';
+            warnings.forEach(warning => {
+                html += `<li style="color: #d32f2f;">${warning}</li>`;
+            });
+            html += '</ul>';
+        }
+
+        html += '</div>';
+        container.innerHTML = html;
+
+    } catch (e) {
+        console.error('Error parsing analysis:', e);
+        container.innerHTML = `<pre style="white-space: pre-wrap;">${JSON.stringify(analysis, null, 2)}</pre>`;
+    }
+}
+
+function displayTradeRecommendations(analysis) {
+    const container = document.getElementById('claude-recommendations-container');
+
+    try {
+        // Parse the raw_analysis JSON string
+        let parsed = analysis;
+        if (analysis.raw_analysis) {
+            const jsonMatch = analysis.raw_analysis.match(/```json\n([\s\S]*?)\n```/);
+            if (jsonMatch) {
+                parsed = JSON.parse(jsonMatch[1]);
+            }
+        }
+
+        const actions = parsed.recommended_actions || [];
+        const buyActions = actions.filter(a => a.action === 'buy');
+
+        if (buyActions.length === 0) {
+            container.innerHTML = '<p class="no-data">No buy recommendations at this time. Market conditions suggest holding cash.</p>';
+            return;
+        }
+
+        let html = '';
+        buyActions.forEach((rec, index) => {
+            const convictionColor = rec.conviction >= 80 ? '#4caf50' : rec.conviction >= 60 ? '#ff9800' : '#f44336';
+            const autoExecute = rec.conviction >= 80;
+
+            html += `<div style="border: 2px solid ${convictionColor}; padding: 15px; margin: 10px 0; border-radius: 8px; background: #fafafa;">`;
+            html += `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">`;
+            html += `<h3 style="margin: 0;">${rec.coin}</h3>`;
+            html += `<span style="background: ${convictionColor}; color: white; padding: 5px 15px; border-radius: 20px; font-weight: bold;">${rec.conviction}% Conviction</span>`;
+            html += `</div>`;
+
+            if (autoExecute) {
+                html += `<p style="color: #4caf50; font-weight: bold;">✅ HIGH CONVICTION - Would auto-execute in autonomous mode</p>`;
+            } else {
+                html += `<p style="color: #ff9800; font-weight: bold;">⚠️ MODERATE CONVICTION - Requires manual approval</p>`;
+            }
+
+            html += `<p><strong>Entry Price:</strong> $${rec.target_entry ? rec.target_entry.toFixed(2) : 'Market'}</p>`;
+            html += `<p><strong>Stop Loss:</strong> $${rec.stop_loss ? rec.stop_loss.toFixed(2) : 'N/A'} (${rec.stop_loss && rec.target_entry ? (((rec.stop_loss - rec.target_entry) / rec.target_entry) * 100).toFixed(1) : '0'}%)</p>`;
+            html += `<p><strong>Take Profit:</strong> `;
+            if (rec.take_profit && rec.take_profit.length > 0) {
+                rec.take_profit.forEach((tp, i) => {
+                    const pct = rec.target_entry ? (((tp - rec.target_entry) / rec.target_entry) * 100).toFixed(1) : '0';
+                    html += `$${tp.toFixed(2)} (+${pct}%) `;
+                });
+            }
+            html += `</p>`;
+            html += `<p><strong>Position Size:</strong> ${(rec.position_size_pct * 100).toFixed(0)}% ($${(rec.position_size_pct * 600).toFixed(2)})</p>`;
+            html += `<p style="background: #e3f2fd; padding: 10px; border-radius: 4px; margin: 10px 0;"><strong>Reasoning:</strong> ${rec.reasoning}</p>`;
+
+            html += `<div style="display: flex; gap: 10px; margin-top: 15px;">`;
+            html += `<button class="btn btn-success" onclick="approveTrade('${rec.coin}', ${rec.position_size_pct}, ${rec.stop_loss}, ${rec.take_profit[0]})">✅ Approve & Execute</button>`;
+            html += `<button class="btn btn-danger" onclick="rejectTrade('${rec.coin}')">❌ Reject</button>`;
+            html += `</div>`;
+            html += `</div>`;
+        });
+
+        container.innerHTML = html;
+
+    } catch (e) {
+        console.error('Error parsing recommendations:', e);
+        container.innerHTML = '<p class="no-data">Error loading recommendations</p>';
+    }
+}
+
+async function approveTrade(coin, positionSizePct, stopLoss, takeProfit) {
+    if (!confirm(`Execute trade for ${coin}?\n\nPosition Size: ${(positionSizePct * 100).toFixed(0)}%\nStop Loss: $${stopLoss.toFixed(2)}\nTake Profit: $${takeProfit.toFixed(2)}`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/trade/execute', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                product_id: coin,
+                position_size_pct: positionSizePct,
+                stop_loss: stopLoss,
+                take_profit: takeProfit
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            alert(`✅ Trade executed successfully!\n\n${result.message}`);
+            loadStatus();  // Refresh dashboard
+            loadPositions();
+        } else {
+            alert(`❌ Trade failed: ${result.error}`);
+        }
+
+    } catch (error) {
+        alert(`❌ Error: ${error.message}`);
+    }
+}
+
+function rejectTrade(coin) {
+    alert(`Trade for ${coin} rejected`);
+    // Could log this or remove from recommendations
+}
+
+async function submitManualTrade() {
+    const coin = document.getElementById('manual_coin').value;
+    const size = parseFloat(document.getElementById('manual_size').value);
+    const stopLossPct = parseFloat(document.getElementById('manual_stop_loss').value);
+    const takeProfitPct = parseFloat(document.getElementById('manual_take_profit').value);
+
+    if (!coin || !size || !stopLossPct || !takeProfitPct) {
+        alert('Please fill in all fields');
+        return;
+    }
+
+    const statusDiv = document.getElementById('manual-trade-status');
+    statusDiv.innerHTML = '<p style="color: #ff9800;">⏳ Placing trade...</p>';
+
+    try {
+        const response = await fetch('/api/trade/manual', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                product_id: coin,
+                size_usd: size,
+                stop_loss_pct: stopLossPct / 100,
+                take_profit_pct: takeProfitPct / 100
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            statusDiv.innerHTML = `<p style="color: #4caf50;">✅ ${result.message}</p>`;
+            document.getElementById('manual-trade-form').reset();
+            loadStatus();  // Refresh dashboard
+            loadPositions();
+        } else {
+            statusDiv.innerHTML = `<p style="color: #f44336;">❌ ${result.error}</p>`;
+        }
+
+    } catch (error) {
+        statusDiv.innerHTML = `<p style="color: #f44336;">❌ Error: ${error.message}</p>`;
+    }
 }
 
 function loadClaudeHistory() {
