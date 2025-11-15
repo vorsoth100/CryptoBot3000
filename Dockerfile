@@ -2,25 +2,28 @@ FROM python:3.9-slim
 
 WORKDIR /app
 
-# Install system dependencies for TA-Lib
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
     wget \
     curl \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
-# Install TA-Lib with retry and verbose output
+# Install TA-Lib from GitHub mirror (more reliable than sourceforge)
 RUN set -ex && \
-    wget --timeout=30 --tries=3 http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz || \
-    curl -L -o ta-lib-0.4.0-src.tar.gz http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz && \
+    cd /tmp && \
+    git clone --depth 1 https://github.com/TA-Lib/ta-lib-python.git && \
+    cd ta-lib-python && \
+    curl -L https://github.com/ta-lib/ta-lib/releases/download/v0.4.0/ta-lib-0.4.0-src.tar.gz -o ta-lib-0.4.0-src.tar.gz && \
     tar -xzf ta-lib-0.4.0-src.tar.gz && \
-    cd ta-lib/ && \
+    cd ta-lib && \
     ./configure --prefix=/usr && \
     make -j$(nproc) && \
     make install && \
     ldconfig && \
-    cd .. && \
-    rm -rf ta-lib*
+    cd /tmp && \
+    rm -rf ta-lib-python
 
 # Copy requirements
 COPY requirements.txt .
