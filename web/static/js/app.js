@@ -404,23 +404,23 @@ function displayClaudeAnalysis(analysis) {
         const assessment = parsed.market_assessment || {};
         const warnings = parsed.risk_warnings || [];
 
-        let html = '<div style="background: #f5f5f5; padding: 15px; border-radius: 4px;">';
-        html += `<h3>Market Regime: <span style="color: #2196f3;">${assessment.regime || 'Unknown'}</span></h3>`;
-        html += `<p><strong>Confidence:</strong> ${assessment.confidence || 0}%</p>`;
-        html += `<p><strong>Risk Level:</strong> ${assessment.risk_level || 'Unknown'}</p>`;
+        let html = '<div style="background: #f5f5f5; padding: 15px; border-radius: 4px; color: #333;">';
+        html += `<h3 style="color: #1a1a1a;">Market Regime: <span style="color: #2196f3;">${assessment.regime || 'Unknown'}</span></h3>`;
+        html += `<p style="color: #333;"><strong>Confidence:</strong> ${assessment.confidence || 0}%</p>`;
+        html += `<p style="color: #333;"><strong>Risk Level:</strong> ${assessment.risk_level || 'Unknown'}</p>`;
 
         if (assessment.key_factors && assessment.key_factors.length > 0) {
-            html += '<h4>Key Factors:</h4><ul>';
+            html += '<h4 style="color: #1a1a1a;">Key Factors:</h4><ul style="color: #333;">';
             assessment.key_factors.forEach(factor => {
-                html += `<li>${factor}</li>`;
+                html += `<li style="color: #333;">${factor}</li>`;
             });
             html += '</ul>';
         }
 
         if (warnings.length > 0) {
-            html += '<h4 style="color: #f44336;">⚠️ Risk Warnings:</h4><ul>';
+            html += '<h4 style="color: #c62828;">⚠️ Risk Warnings:</h4><ul>';
             warnings.forEach(warning => {
-                html += `<li style="color: #d32f2f;">${warning}</li>`;
+                html += `<li style="color: #c62828; font-weight: 500;">${warning}</li>`;
             });
             html += '</ul>';
         }
