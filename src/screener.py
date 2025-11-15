@@ -48,25 +48,9 @@ class MarketScreener:
                 # Extract symbol (e.g., BTC from BTC-USD)
                 symbol = product_id.split('-')[0]
 
-                # Get market data from CoinGecko (optional - for market cap filtering)
-                market_data = self.data_collector.get_market_data_coingecko(symbol)
-
-                # Apply market cap/volume filters only if we have CoinGecko data
-                if market_data:
-                    min_market_cap = self.config.get("screener_min_market_cap", 5000000000)
-                    min_volume = self.config.get("screener_min_volume_24h", 500000000)
-
-                    if market_data.get("market_cap", 0) < min_market_cap:
-                        self.logger.debug(f"{product_id} filtered: market cap too low")
-                        continue
-
-                    if market_data.get("volume_24h", 0) < min_volume:
-                        self.logger.debug(f"{product_id} filtered: volume too low")
-                        continue
-                else:
-                    # If CoinGecko data unavailable, use empty dict and skip filters
-                    self.logger.debug(f"CoinGecko data unavailable for {product_id}, proceeding without market cap filter")
-                    market_data = {}
+                # Skip CoinGecko data entirely to avoid rate limiting
+                # All coins in config are pre-vetted for market cap/volume
+                market_data = {}
 
                 # Get historical data for technical analysis
                 df = self.data_collector.get_historical_candles(product_id, granularity="ONE_HOUR", days=30)

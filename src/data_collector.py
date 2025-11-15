@@ -188,15 +188,16 @@ class DataCollector:
 
         return df
 
-    def get_market_data_coingecko(self, coin_symbol: str) -> Optional[Dict]:
+    def get_market_data_coingecko(self, coin_symbol: str, skip_on_rate_limit: bool = True) -> Optional[Dict]:
         """
         Get market data from CoinGecko
 
         Args:
             coin_symbol: Coin symbol (e.g., BTC, ETH)
+            skip_on_rate_limit: If True, return None on 429 errors instead of logging error
 
         Returns:
-            Market data dictionary
+            Market data dictionary or None
         """
         cache_key = f"coingecko_{coin_symbol}"
 
@@ -206,11 +207,16 @@ class DataCollector:
         # Get CoinGecko ID
         coin_id = self.COIN_ID_MAP.get(coin_symbol)
         if not coin_id:
-            self.logger.warning(f"No CoinGecko mapping for {coin_symbol}")
+            # Don't log warning if we're skipping rate limits (reduces noise)
+            if not skip_on_rate_limit:
+                self.logger.warning(f"No CoinGecko mapping for {coin_symbol}")
             return None
 
         try:
             self.coingecko_limiter.wait_if_needed()
+
+            # Add extra 3 second delay between calls to be safe
+            time.sleep(3)
 
             url = f"{self.COINGECKO_BASE_URL}/coins/{coin_id}"
             params = {
@@ -240,6 +246,18 @@ class DataCollector:
             self._set_cache(cache_key, market_data)
             return market_data
 
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 429:
+                # Rate limited - return None silently if skip_on_rate_limit is True
+                if skip_on_rate_limit:
+                    self.logger.debug(f"CoinGecko rate limit hit for {coin_symbol}, skipping")
+                    return None
+                else:
+                    self.logger.warning(f"CoinGecko rate limit for {coin_symbol}: {e}")
+                    return None
+            else:
+                self.logger.error(f"Error fetching CoinGecko data for {coin_symbol}: {e}")
+                return None
         except Exception as e:
             self.logger.error(f"Error fetching CoinGecko data for {coin_symbol}: {e}")
             return None
@@ -293,6 +311,9 @@ class DataCollector:
         try:
             self.coingecko_limiter.wait_if_needed()
 
+            # Add 3 second delay
+            time.sleep(3)
+
             url = f"{self.COINGECKO_BASE_URL}/global"
             response = requests.get(url, timeout=10)
             response.raise_for_status()
@@ -305,6 +326,11 @@ class DataCollector:
                     self._set_cache(cache_key, dominance)
                     return dominance
 
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 429:
+                self.logger.debug(f"CoinGecko rate limit hit for BTC dominance, skipping")
+            else:
+                self.logger.error(f"Error fetching BTC dominance: {e}")
         except Exception as e:
             self.logger.error(f"Error fetching BTC dominance: {e}")
 
