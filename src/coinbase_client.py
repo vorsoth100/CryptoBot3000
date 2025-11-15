@@ -39,6 +39,11 @@ class CoinbaseClient:
 
         if not self.api_key or not self.api_secret:
             self.logger.warning("Coinbase API credentials not set")
+        else:
+            # Debug: Log credential info (without exposing secrets)
+            self.logger.info(f"API Key length: {len(self.api_key)}, Secret length: {len(self.api_secret)}")
+            self.logger.info(f"API Key starts with: {self.api_key[:8]}...")
+            self.logger.info(f"Using base URL: {self.base_url}")
 
     def _generate_signature(self, timestamp: str, method: str,
                           path: str, body: str = "") -> str:
@@ -89,8 +94,15 @@ class CoinbaseClient:
         if data:
             body = json.dumps(data)
 
+        # Debug logging for authentication
+        self.logger.debug(f"Request: {method} {endpoint}")
+        self.logger.debug(f"Timestamp: {timestamp}")
+        self.logger.debug(f"Message to sign: {timestamp}{method}{endpoint}{body}")
+
         # Generate signature
         signature = self._generate_signature(timestamp, method, endpoint, body)
+
+        self.logger.debug(f"Signature (first 20 chars): {signature[:20]}...")
 
         # Headers
         headers = {
@@ -111,13 +123,16 @@ class CoinbaseClient:
                 self.logger.error(f"Unsupported HTTP method: {method}")
                 return None
 
+            self.logger.debug(f"Response status: {response.status_code}")
             response.raise_for_status()
             return response.json()
 
         except requests.exceptions.RequestException as e:
             self.logger.error(f"API request error: {e}")
             if hasattr(e, 'response') and e.response is not None:
-                self.logger.error(f"Response: {e.response.text}")
+                self.logger.error(f"Response status: {e.response.status_code}")
+                self.logger.error(f"Response headers: {dict(e.response.headers)}")
+                self.logger.error(f"Response body: {e.response.text}")
             return None
 
     def get_accounts(self) -> Optional[List[Dict]]:
