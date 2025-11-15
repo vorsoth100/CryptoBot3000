@@ -10,6 +10,7 @@ import hashlib
 import json
 import requests
 import logging
+import jwt
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 
@@ -28,7 +29,11 @@ class CoinbaseClient:
 
         Args:
             api_key: Coinbase API key (or from env COINBASE_API_KEY)
+                    - CDP keys: "organizations/{org_id}/apiKeys/{key_id}"
+                    - Legacy keys: alphanumeric string
             api_secret: Coinbase API secret (or from env COINBASE_API_SECRET)
+                       - CDP keys: PEM format EC private key
+                       - Legacy keys: alphanumeric string
             sandbox: Use sandbox environment for testing
         """
         self.api_key = api_key or os.getenv("COINBASE_API_KEY")
@@ -36,18 +41,60 @@ class CoinbaseClient:
         self.base_url = self.BASE_URL_SANDBOX if sandbox else self.BASE_URL_LIVE
         self.logger = logging.getLogger("CryptoBot.Coinbase")
 
+        # Detect authentication type
+        self.is_cdp_key = self.api_key and self.api_key.startswith("organizations/")
+
         if not self.api_key or not self.api_secret:
             self.logger.warning("Coinbase API credentials not set")
         else:
             # Debug: Log credential info (without exposing secrets)
+            auth_type = "CDP (Cloud)" if self.is_cdp_key else "Legacy"
+            self.logger.info(f"Authentication type: {auth_type}")
             self.logger.info(f"API Key length: {len(self.api_key)}, Secret length: {len(self.api_secret)}")
-            self.logger.info(f"API Key starts with: {self.api_key[:8]}...")
+            self.logger.info(f"API Key starts with: {self.api_key[:20]}...")
             self.logger.info(f"Using base URL: {self.base_url}")
+
+    def _generate_jwt_token(self, uri: str) -> str:
+        """
+        Generate JWT token for CDP API authentication
+
+        Args:
+            uri: Request URI (e.g., GET api.coinbase.com/api/v3/brokerage/accounts)
+
+        Returns:
+            JWT token string
+        """
+        import secrets
+
+        # Build JWT
+        now = int(time.time())
+        payload = {
+            "sub": self.api_key,
+            "iss": "coinbase-cloud",
+            "nbf": now,
+            "exp": now + 120,  # Token valid for 2 minutes
+            "aud": ["cdp_service"],
+            "uri": uri
+        }
+
+        # Generate nonce
+        nonce = secrets.token_hex(16)
+        payload["nonce"] = nonce
+
+        # Sign with ES256 algorithm
+        token = jwt.encode(
+            payload,
+            self.api_secret,
+            algorithm="ES256",
+            headers={"kid": self.api_key, "nonce": nonce}
+        )
+
+        return token
 
     def _generate_signature(self, timestamp: str, method: str,
                           path: str, body: str = "") -> str:
         """
-        Generate request signature for authentication (Coinbase Advanced Trade Legacy Keys)
+        Generate request signature for Legacy Key authentication
 
         Args:
             timestamp: Unix timestamp
@@ -86,30 +133,44 @@ class CoinbaseClient:
             return None
 
         url = self.base_url + endpoint
-        timestamp = str(int(time.time()))
 
-        # Prepare body
-        body = ""
-        if data:
-            body = json.dumps(data)
+        # Build headers based on authentication type
+        if self.is_cdp_key:
+            # CDP API Key - Use JWT authentication
+            uri = f"{method} {self.base_url.replace('https://', '')}{endpoint}"
+            self.logger.debug(f"Generating JWT for URI: {uri}")
 
-        # Debug logging for authentication
-        self.logger.debug(f"Request: {method} {endpoint}")
-        self.logger.debug(f"Timestamp: {timestamp}")
-        self.logger.debug(f"Message to sign: {timestamp}{method}{endpoint}{body}")
+            try:
+                token = self._generate_jwt_token(uri)
+                self.logger.debug(f"JWT token generated (first 30 chars): {token[:30]}...")
 
-        # Generate signature
-        signature = self._generate_signature(timestamp, method, endpoint, body)
+                headers = {
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": "application/json"
+                }
+            except Exception as e:
+                self.logger.error(f"Failed to generate JWT token: {e}")
+                return None
+        else:
+            # Legacy API Key - Use HMAC signature
+            timestamp = str(int(time.time()))
+            body = ""
+            if data:
+                body = json.dumps(data)
 
-        self.logger.debug(f"Signature (first 20 chars): {signature[:20]}...")
+            self.logger.debug(f"Request: {method} {endpoint}")
+            self.logger.debug(f"Timestamp: {timestamp}")
+            self.logger.debug(f"Message to sign: {timestamp}{method}{endpoint}{body}")
 
-        # Headers
-        headers = {
-            "CB-ACCESS-KEY": self.api_key,
-            "CB-ACCESS-SIGN": signature,
-            "CB-ACCESS-TIMESTAMP": timestamp,
-            "Content-Type": "application/json"
-        }
+            signature = self._generate_signature(timestamp, method, endpoint, body)
+            self.logger.debug(f"Signature (first 20 chars): {signature[:20]}...")
+
+            headers = {
+                "CB-ACCESS-KEY": self.api_key,
+                "CB-ACCESS-SIGN": signature,
+                "CB-ACCESS-TIMESTAMP": timestamp,
+                "Content-Type": "application/json"
+            }
 
         try:
             if method == "GET":
