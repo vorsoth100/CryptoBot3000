@@ -422,67 +422,108 @@ class TradingBot:
         except Exception as e:
             self.logger.error(f"Error scanning opportunities: {e}")
 
-    def _execute_buy(self, recommendation: Dict):
-        """Execute a buy order"""
-        try:
-            product_id = recommendation.get("coin")
-            target_price = recommendation.get("target_entry")
+    def _open_position(self, product_id: str, quantity: float, entry_price: float, reason: str = "Manual") -> bool:
+        """
+        Open a new position (used by web UI and manual trades)
 
+        Args:
+            product_id: Product to buy (e.g., BTC-USD)
+            quantity: Amount to buy (in base currency)
+            entry_price: Price per unit
+            reason: Reason for opening position
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
             # Get current balance
-            balance = self.coinbase.get_balance("USD")
-            if not balance:
-                self.logger.error("Could not get USD balance")
-                return
+            if self.dry_run:
+                balance = self.risk_manager.current_capital
+            else:
+                balance = self.coinbase.get_balance("USD")
+                if not balance:
+                    self.logger.error("Could not get USD balance")
+                    return False
 
             # Calculate position size
-            position_size_usd = self.risk_manager.calculate_position_size_usd(balance)
+            position_size_usd = quantity * entry_price
 
             # Check if can open position
-            can_open, reason = self.risk_manager.can_open_position(product_id, position_size_usd, balance)
+            can_open, check_reason = self.risk_manager.can_open_position(product_id, position_size_usd, balance)
             if not can_open:
-                self.logger.warning(f"Cannot open position: {reason}")
-                return
+                self.logger.warning(f"Cannot open position: {check_reason}")
+                return False
 
-            # Calculate quantity
-            quantity = position_size_usd / target_price
-
-            # Calculate fee
-            maker_fee = self.config.get("coinbase_maker_fee", 0.005)
-            entry_fee = position_size_usd * maker_fee
+            # Calculate fee (use taker fee for market orders)
+            taker_fee = self.config.get("coinbase_taker_fee", 0.02)
+            entry_fee = position_size_usd * taker_fee
 
             if not self.dry_run:
-                # Place limit order
-                order = self.coinbase.place_limit_order(
+                # Place market buy order
+                order = self.coinbase.place_market_order(
                     product_id,
                     "BUY",
-                    quantity,
-                    target_price,
-                    post_only=True
+                    quantity=quantity
                 )
 
                 if not order:
                     self.logger.error(f"Failed to place order for {product_id}")
-                    return
+                    return False
 
             # Open position in risk manager
-            self.risk_manager.open_position(product_id, quantity, target_price, entry_fee)
+            success = self.risk_manager.open_position(product_id, quantity, entry_price, entry_fee)
+
+            if not success:
+                self.logger.error(f"Risk manager rejected position")
+                return False
 
             # Log trade
             self.performance_tracker.log_trade({
                 "product_id": product_id,
                 "side": "BUY",
                 "quantity": quantity,
-                "price": target_price,
+                "price": entry_price,
                 "value_usd": position_size_usd,
                 "fee_usd": entry_fee,
                 "net_pnl": 0,
                 "pnl_pct": 0,
                 "hold_time_hours": 0,
-                "reason": "Claude recommendation",
+                "reason": reason,
                 "notes": "DRY RUN" if self.dry_run else "LIVE"
             })
 
-            self.logger.info(f"✓ Opened position: {quantity:.6f} {product_id} @ ${target_price:.2f}")
+            self.logger.info(f"✓ Opened position: {quantity:.6f} {product_id} @ ${entry_price:.2f} ({reason})")
+            return True
+
+        except Exception as e:
+            self.logger.error(f"Error opening position: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+
+    def _execute_buy(self, recommendation: Dict):
+        """Execute a buy order from Claude recommendation"""
+        try:
+            product_id = recommendation.get("coin")
+            target_price = recommendation.get("target_entry")
+
+            # Get current balance
+            if self.dry_run:
+                balance = self.risk_manager.current_capital
+            else:
+                balance = self.coinbase.get_balance("USD")
+                if not balance:
+                    self.logger.error("Could not get USD balance")
+                    return
+
+            # Calculate position size
+            position_size_usd = self.risk_manager.calculate_position_size_usd(balance)
+
+            # Calculate quantity
+            quantity = position_size_usd / target_price
+
+            # Use the new _open_position method
+            self._open_position(product_id, quantity, target_price, "Claude recommendation")
 
         except Exception as e:
             self.logger.error(f"Error executing buy: {e}")
