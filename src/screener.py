@@ -48,9 +48,8 @@ class MarketScreener:
                 # Extract symbol (e.g., BTC from BTC-USD)
                 symbol = product_id.split('-')[0]
 
-                # Skip CoinGecko data entirely to avoid rate limiting
-                # All coins in config are pre-vetted for market cap/volume
-                market_data = {}
+                # Get price changes from Coinbase data
+                price_changes = self.data_collector.get_price_changes(product_id) or {}
 
                 # Get historical data for technical analysis
                 df = self.data_collector.get_historical_candles(product_id, granularity="ONE_HOUR", days=30)
@@ -65,7 +64,7 @@ class MarketScreener:
                 signal_data = self.signal_generator.get_combined_signal(df)
 
                 # Mode-specific scoring
-                score = self._calculate_score(mode, df, signal_data, market_data)
+                score = self._calculate_score(mode, df, signal_data, price_changes)
 
                 if score > 0:
                     opportunities.append({
@@ -75,9 +74,10 @@ class MarketScreener:
                         "signal": signal_data['signal'],
                         "confidence": signal_data['confidence'],
                         "price": df['close'].iloc[-1],
-                        "market_cap": market_data.get("market_cap"),
-                        "volume_24h": market_data.get("volume_24h"),
-                        "price_change_24h": market_data.get("price_change_24h"),
+                        "volume_24h": price_changes.get("volume_24h"),
+                        "price_change_24h": price_changes.get("price_change_24h"),
+                        "price_change_7d": price_changes.get("price_change_7d"),
+                        "price_change_30d": price_changes.get("price_change_30d"),
                         "indicators": signal_data['indicators'],
                         "volume_spike": signal_data['volume_spike']
                     })

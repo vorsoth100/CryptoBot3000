@@ -16,40 +16,9 @@ from src.utils import RateLimiter
 class DataCollector:
     """Collects market data from various sources"""
 
-    COINGECKO_BASE_URL = "https://api.coingecko.com/api/v3"
     FEAR_GREED_URL = "https://api.alternative.me/fng/"
-
-    # Mapping from Coinbase symbols to CoinGecko IDs
-    COIN_ID_MAP = {
-        "BTC": "bitcoin",
-        "ETH": "ethereum",
-        "SOL": "solana",
-        "XRP": "ripple",
-        "ADA": "cardano",
-        "MATIC": "matic-network",
-        "POL": "matic-network",  # POL is the new MATIC ticker
-        "LINK": "chainlink",
-        "DOT": "polkadot",
-        "AVAX": "avalanche-2",
-        "ATOM": "cosmos",
-        "NEAR": "near",
-        "APT": "aptos",
-        "SUI": "sui",
-        "UNI": "uniswap",
-        "AAVE": "aave",
-        "ARB": "arbitrum",
-        "OP": "optimism",
-        "RENDER": "render-token",
-        "FET": "fetch-ai",
-        "GRT": "the-graph",
-        "PEPE": "pepe",
-        "DOGE": "dogecoin",
-        "LTC": "litecoin",
-        "BCH": "bitcoin-cash",
-        "ETC": "ethereum-classic",
-        "TIA": "celestia",
-        "INJ": "injective-protocol"
-    }
+    COINMARKETCAP_URL = "https://pro-api.coinmarketcap.com/v1"  # Requires API key (free tier: 10k calls/month)
+    CRYPTOCOMPARE_URL = "https://min-api.cryptocompare.com/data"  # Free, 100k calls/month
 
     def __init__(self, coinbase_client, cache_minutes: int = 60):
         """
@@ -62,9 +31,6 @@ class DataCollector:
         self.coinbase = coinbase_client
         self.cache_minutes = cache_minutes
         self.logger = logging.getLogger("CryptoBot.DataCollector")
-
-        # Rate limiters (reduced to 5 calls/min to avoid 429 errors)
-        self.coingecko_limiter = RateLimiter(calls_per_minute=5)
 
         # Cache
         self.cache = {}
@@ -188,78 +154,60 @@ class DataCollector:
 
         return df
 
-    def get_market_data_coingecko(self, coin_symbol: str, skip_on_rate_limit: bool = True) -> Optional[Dict]:
+    def get_price_changes(self, product_id: str) -> Optional[Dict]:
         """
-        Get market data from CoinGecko
+        Calculate price changes from Coinbase historical data
 
         Args:
-            coin_symbol: Coin symbol (e.g., BTC, ETH)
-            skip_on_rate_limit: If True, return None on 429 errors instead of logging error
+            product_id: Product ID (e.g., BTC-USD)
 
         Returns:
-            Market data dictionary or None
+            Dictionary with 24h, 7d, 30d price changes
         """
-        cache_key = f"coingecko_{coin_symbol}"
+        cache_key = f"price_changes_{product_id}"
 
         if self._is_cache_valid(cache_key):
             return self.cache[cache_key]
 
-        # Get CoinGecko ID
-        coin_id = self.COIN_ID_MAP.get(coin_symbol)
-        if not coin_id:
-            # Don't log warning if we're skipping rate limits (reduces noise)
-            if not skip_on_rate_limit:
-                self.logger.warning(f"No CoinGecko mapping for {coin_symbol}")
-            return None
-
         try:
-            self.coingecko_limiter.wait_if_needed()
-
-            # Add extra 3 second delay between calls to be safe
-            time.sleep(3)
-
-            url = f"{self.COINGECKO_BASE_URL}/coins/{coin_id}"
-            params = {
-                "localization": "false",
-                "tickers": "false",
-                "community_data": "false",
-                "developer_data": "false"
-            }
-
-            response = requests.get(url, params=params, timeout=10)
-            response.raise_for_status()
-            data = response.json()
-
-            # Extract relevant data
-            market_data = {
-                "symbol": coin_symbol,
-                "name": data.get("name"),
-                "market_cap": data.get("market_data", {}).get("market_cap", {}).get("usd"),
-                "volume_24h": data.get("market_data", {}).get("total_volume", {}).get("usd"),
-                "price_change_24h": data.get("market_data", {}).get("price_change_percentage_24h"),
-                "price_change_7d": data.get("market_data", {}).get("price_change_percentage_7d"),
-                "price_change_30d": data.get("market_data", {}).get("price_change_percentage_30d"),
-                "circulating_supply": data.get("market_data", {}).get("circulating_supply"),
-                "market_cap_rank": data.get("market_cap_rank")
-            }
-
-            self._set_cache(cache_key, market_data)
-            return market_data
-
-        except requests.exceptions.HTTPError as e:
-            if e.response.status_code == 429:
-                # Rate limited - return None silently if skip_on_rate_limit is True
-                if skip_on_rate_limit:
-                    self.logger.debug(f"CoinGecko rate limit hit for {coin_symbol}, skipping")
-                    return None
-                else:
-                    self.logger.warning(f"CoinGecko rate limit for {coin_symbol}: {e}")
-                    return None
-            else:
-                self.logger.error(f"Error fetching CoinGecko data for {coin_symbol}: {e}")
+            # Get current price
+            current_price = self.get_current_price(product_id)
+            if not current_price:
                 return None
+
+            # Get 30-day historical data
+            df = self.get_historical_candles(product_id, granularity="ONE_DAY", days=30)
+            if df is None or df.empty:
+                return None
+
+            # Calculate price changes
+            changes = {}
+
+            # 24h change (compare to 1 day ago)
+            if len(df) >= 1:
+                price_24h_ago = df['close'].iloc[-2] if len(df) >= 2 else df['close'].iloc[-1]
+                changes['price_change_24h'] = ((current_price - price_24h_ago) / price_24h_ago) * 100
+
+            # 7d change
+            if len(df) >= 7:
+                price_7d_ago = df['close'].iloc[-8] if len(df) >= 8 else df['close'].iloc[0]
+                changes['price_change_7d'] = ((current_price - price_7d_ago) / price_7d_ago) * 100
+
+            # 30d change
+            if len(df) >= 30:
+                price_30d_ago = df['close'].iloc[0]
+                changes['price_change_30d'] = ((current_price - price_30d_ago) / price_30d_ago) * 100
+
+            # 24h volume (sum of last 24 hourly candles)
+            hourly_df = self.get_historical_candles(product_id, granularity="ONE_HOUR", days=1)
+            if hourly_df is not None and not hourly_df.empty:
+                changes['volume_24h'] = hourly_df['volume'].sum() * current_price  # Convert to USD
+
+            self._set_cache(cache_key, changes)
+            return changes
+
         except Exception as e:
-            self.logger.error(f"Error fetching CoinGecko data for {coin_symbol}: {e}")
+            self.logger.error(f"Error calculating price changes for {product_id}: {e}")
             return None
 
     def get_fear_greed_index(self) -> Optional[Dict]:
@@ -298,7 +246,7 @@ class DataCollector:
 
     def get_btc_dominance(self) -> Optional[float]:
         """
-        Get Bitcoin dominance percentage
+        Get Bitcoin dominance percentage from CryptoCompare (free API)
 
         Returns:
             BTC dominance as percentage
@@ -309,148 +257,90 @@ class DataCollector:
             return self.cache[cache_key]
 
         try:
-            self.coingecko_limiter.wait_if_needed()
+            # CryptoCompare toplist endpoint (free, no key required)
+            url = f"{self.CRYPTOCOMPARE_URL}/top/mktcapfull"
+            params = {
+                "limit": 100,  # Get top 100 coins
+                "tsym": "USD"
+            }
 
-            # Add 3 second delay
-            time.sleep(3)
-
-            url = f"{self.COINGECKO_BASE_URL}/global"
-            response = requests.get(url, timeout=10)
+            response = requests.get(url, params=params, timeout=10)
             response.raise_for_status()
             data = response.json()
 
-            if "data" in data and "market_cap_percentage" in data["data"]:
-                dominance = data["data"]["market_cap_percentage"].get("btc")
+            if "Data" in data:
+                total_mktcap = 0
+                btc_mktcap = 0
 
-                if dominance:
+                for coin in data["Data"]:
+                    coin_info = coin.get("CoinInfo", {})
+                    raw_data = coin.get("RAW", {}).get("USD", {})
+
+                    mktcap = raw_data.get("MKTCAP", 0)
+                    total_mktcap += mktcap
+
+                    if coin_info.get("Name") == "BTC":
+                        btc_mktcap = mktcap
+
+                if total_mktcap > 0 and btc_mktcap > 0:
+                    dominance = (btc_mktcap / total_mktcap) * 100
                     self._set_cache(cache_key, dominance)
                     return dominance
 
-        except requests.exceptions.HTTPError as e:
-            if e.response.status_code == 429:
-                self.logger.debug(f"CoinGecko rate limit hit for BTC dominance, skipping")
-            else:
-                self.logger.error(f"Error fetching BTC dominance: {e}")
         except Exception as e:
-            self.logger.error(f"Error fetching BTC dominance: {e}")
+            self.logger.error(f"Error fetching BTC dominance from CryptoCompare: {e}")
 
         return None
 
-    def get_top_coins_by_market_cap(self, limit: int = 50) -> Optional[List[Dict]]:
+    def get_market_snapshot(self) -> Optional[Dict]:
         """
-        Get top cryptocurrencies by market cap from CoinGecko
-
-        Args:
-            limit: Number of coins to return
+        Get overall crypto market snapshot from CryptoCompare (free API)
 
         Returns:
-            List of coin dictionaries
+            Dictionary with market overview data
         """
-        cache_key = f"top_coins_{limit}"
+        cache_key = "market_snapshot"
 
         if self._is_cache_valid(cache_key):
             return self.cache[cache_key]
 
         try:
-            self.coingecko_limiter.wait_if_needed()
-
-            url = f"{self.COINGECKO_BASE_URL}/coins/markets"
+            url = f"{self.CRYPTOCOMPARE_URL}/top/mktcapfull"
             params = {
-                "vs_currency": "usd",
-                "order": "market_cap_desc",
-                "per_page": limit,
-                "page": 1
+                "limit": 10,  # Top 10 coins
+                "tsym": "USD"
             }
 
             response = requests.get(url, params=params, timeout=10)
             response.raise_for_status()
             data = response.json()
 
-            coins = []
-            for coin in data:
-                coins.append({
-                    "symbol": coin["symbol"].upper(),
-                    "name": coin["name"],
-                    "market_cap": coin["market_cap"],
-                    "volume_24h": coin["total_volume"],
-                    "price": coin["current_price"],
-                    "price_change_24h": coin["price_change_percentage_24h"],
-                    "market_cap_rank": coin["market_cap_rank"]
-                })
+            if "Data" in data:
+                snapshot = {
+                    "timestamp": datetime.now(),
+                    "top_coins": []
+                }
 
-            self._set_cache(cache_key, coins)
-            return coins
+                for coin in data["Data"]:
+                    coin_info = coin.get("CoinInfo", {})
+                    raw_data = coin.get("RAW", {}).get("USD", {})
 
-        except Exception as e:
-            self.logger.error(f"Error fetching top coins: {e}")
-            return None
+                    snapshot["top_coins"].append({
+                        "symbol": coin_info.get("Name"),
+                        "name": coin_info.get("FullName"),
+                        "price": raw_data.get("PRICE"),
+                        "market_cap": raw_data.get("MKTCAP"),
+                        "volume_24h": raw_data.get("VOLUME24HOURTO"),
+                        "change_24h": raw_data.get("CHANGEPCT24HOUR")
+                    })
 
-    def get_coin_history(self, coin_symbol: str, days: int = 30) -> Optional[pd.DataFrame]:
-        """
-        Get historical price data from CoinGecko
-
-        Args:
-            coin_symbol: Coin symbol (e.g., BTC)
-            days: Number of days of history
-
-        Returns:
-            DataFrame with price history
-        """
-        cache_key = f"history_{coin_symbol}_{days}"
-
-        if self._is_cache_valid(cache_key):
-            return self.cache[cache_key]
-
-        coin_id = self.COIN_ID_MAP.get(coin_symbol)
-        if not coin_id:
-            self.logger.warning(f"No CoinGecko mapping for {coin_symbol}")
-            return None
-
-        try:
-            self.coingecko_limiter.wait_if_needed()
-
-            url = f"{self.COINGECKO_BASE_URL}/coins/{coin_id}/market_chart"
-            params = {
-                "vs_currency": "usd",
-                "days": days,
-                "interval": "daily" if days > 1 else "hourly"
-            }
-
-            response = requests.get(url, params=params, timeout=10)
-            response.raise_for_status()
-            data = response.json()
-
-            if "prices" in data:
-                df = pd.DataFrame(data["prices"], columns=["timestamp", "price"])
-                df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
-                df = df.set_index("timestamp")
-
-                self._set_cache(cache_key, df)
-                return df
+                self._set_cache(cache_key, snapshot)
+                return snapshot
 
         except Exception as e:
-            self.logger.error(f"Error fetching coin history for {coin_symbol}: {e}")
+            self.logger.error(f"Error fetching market snapshot: {e}")
 
         return None
-
-    def get_multi_coin_data(self, coin_symbols: List[str]) -> Dict[str, Dict]:
-        """
-        Get market data for multiple coins
-
-        Args:
-            coin_symbols: List of coin symbols
-
-        Returns:
-            Dictionary mapping symbol to market data
-        """
-        results = {}
-
-        for symbol in coin_symbols:
-            data = self.get_market_data_coingecko(symbol)
-            if data:
-                results[symbol] = data
-
-        return results
 
     def clear_cache(self):
         """Clear all cached data"""
