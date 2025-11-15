@@ -177,20 +177,29 @@ function displayPositions(positions) {
     }
 
     let html = '<table class="positions-table"><thead><tr>';
-    html += '<th>Coin</th><th>Quantity</th><th>Entry Price</th><th>Current Price</th>';
-    html += '<th>P&L</th><th>P&L %</th><th>Stop Loss</th><th>Actions</th>';
+    html += '<th>Coin</th><th>Quantity</th><th>Entry Price</th><th>Entry Value</th>';
+    html += '<th>Current Price</th><th>Current Value</th><th>Fees Paid</th>';
+    html += '<th>P&L</th><th>P&L %</th><th>Stop Loss</th><th>Take Profit</th><th>Actions</th>';
     html += '</tr></thead><tbody>';
 
     positions.forEach(pos => {
         const pnlClass = pos.net_pnl >= 0 ? 'positive' : 'negative';
+        const currentPrice = pos.current_price || pos.entry_price;
+        const entryValue = pos.quantity * pos.entry_price;
+        const currentValue = pos.quantity * currentPrice;
+
         html += '<tr>';
         html += `<td><strong>${pos.product_id}</strong></td>`;
         html += `<td>${parseFloat(pos.quantity).toFixed(6)}</td>`;
         html += `<td>${formatUSD(pos.entry_price)}</td>`;
-        html += `<td>${formatUSD(pos.current_price || pos.entry_price)}</td>`;
-        html += `<td class="${pnlClass}">${formatUSD(pos.net_pnl || 0)}</td>`;
-        html += `<td class="${pnlClass}">${(pos.pnl_pct || 0).toFixed(2)}%</td>`;
+        html += `<td>${formatUSD(entryValue)}</td>`;
+        html += `<td>${formatUSD(currentPrice)}</td>`;
+        html += `<td><strong>${formatUSD(currentValue)}</strong></td>`;
+        html += `<td>${formatUSD(pos.entry_fee || 0)}</td>`;
+        html += `<td class="${pnlClass}"><strong>${formatUSD(pos.net_pnl || 0)}</strong></td>`;
+        html += `<td class="${pnlClass}"><strong>${(pos.pnl_pct || 0).toFixed(2)}%</strong></td>`;
         html += `<td>${formatUSD(pos.stop_loss_price || 0)}</td>`;
+        html += `<td>${formatUSD(pos.take_profit_price || 0)}</td>`;
         html += `<td><button class="btn btn-danger btn-sm" onclick="closePosition('${pos.product_id}')">Close</button></td>`;
         html += '</tr>';
     });
@@ -209,19 +218,39 @@ function displayRecentTrades(trades) {
 
     let html = '';
     trades.forEach(trade => {
-        if (!trade.net_pnl) return; // Skip entry-only trades
+        const isClosed = trade.net_pnl !== undefined && trade.net_pnl !== 0;
+        const pnlClass = isClosed ? (parseFloat(trade.net_pnl) >= 0 ? 'profit' : 'loss') : '';
+        const tradeValue = trade.quantity * trade.price;
 
-        const pnlClass = parseFloat(trade.net_pnl) >= 0 ? 'profit' : 'loss';
         html += `<div class="trade-item ${pnlClass}">`;
         html += `<div class="trade-header">`;
         html += `<span><strong>${trade.product_id}</strong> - ${trade.side}</span>`;
-        html += `<span class="${pnlClass}">${formatUSD(trade.net_pnl)} (${parseFloat(trade.pnl_pct).toFixed(2)}%)</span>`;
+
+        if (isClosed) {
+            html += `<span class="${pnlClass}">${formatUSD(trade.net_pnl)} (${parseFloat(trade.pnl_pct).toFixed(2)}%)</span>`;
+        } else {
+            html += `<span style="color: #2196f3;">OPEN</span>`;
+        }
+
         html += `</div>`;
         html += `<div class="trade-details">`;
-        html += `<div>Price: ${formatUSD(trade.price)}</div>`;
-        html += `<div>Quantity: ${parseFloat(trade.quantity).toFixed(6)}</div>`;
-        html += `<div>Fees: ${formatUSD(trade.fee_usd)}</div>`;
-        html += `<div>Reason: ${trade.reason}</div>`;
+        html += `<div><strong>Price:</strong> ${formatUSD(trade.price)}</div>`;
+        html += `<div><strong>Quantity:</strong> ${parseFloat(trade.quantity).toFixed(6)}</div>`;
+        html += `<div><strong>Trade Value:</strong> ${formatUSD(tradeValue)}</div>`;
+        html += `<div><strong>Fees:</strong> ${formatUSD(trade.fee_usd)}</div>`;
+
+        if (isClosed) {
+            const totalCost = tradeValue + trade.fee_usd;
+            html += `<div><strong>Total Cost:</strong> ${formatUSD(totalCost)}</div>`;
+            html += `<div><strong>Hold Time:</strong> ${trade.hold_time_hours ? trade.hold_time_hours.toFixed(1) + 'h' : 'N/A'}</div>`;
+        } else {
+            const totalCost = tradeValue + trade.fee_usd;
+            html += `<div><strong>Total Cost:</strong> ${formatUSD(totalCost)}</div>`;
+            html += `<div><strong>Current Value:</strong> <span style="font-style: italic;">See Open Positions</span></div>`;
+        }
+
+        html += `<div><strong>Reason:</strong> ${trade.reason}</div>`;
+        html += `<div><strong>Notes:</strong> ${trade.notes || 'N/A'}</div>`;
         html += `</div>`;
         html += `</div>`;
     });
