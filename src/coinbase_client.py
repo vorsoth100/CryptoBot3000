@@ -234,13 +234,86 @@ class CoinbaseClient:
         """
         accounts = self.get_accounts()
         if not accounts:
+            self.logger.warning("No accounts returned from API")
             return None
 
+        # Debug: Log all accounts
+        self.logger.info(f"Found {len(accounts)} total accounts")
+        for account in accounts:
+            currency_code = account.get("currency", "UNKNOWN")
+            # Try different possible balance field structures
+            balance = None
+            if "available_balance" in account:
+                balance = account["available_balance"].get("value", 0)
+            elif "balance" in account:
+                balance = account["balance"].get("value", 0)
+
+            self.logger.info(f"  Account: {currency_code} - Balance: {balance}")
+
+        # Find matching currency
         for account in accounts:
             if account.get("currency") == currency:
-                return float(account.get("available_balance", {}).get("value", 0))
+                # Try available_balance first, then balance
+                if "available_balance" in account:
+                    balance_value = account["available_balance"].get("value", 0)
+                elif "balance" in account:
+                    balance_value = account["balance"].get("value", 0)
+                else:
+                    self.logger.warning(f"No balance field found for {currency} account")
+                    return 0.0
 
+                return float(balance_value)
+
+        self.logger.warning(f"No {currency} account found")
         return 0.0
+
+    def get_total_portfolio_value(self) -> Optional[float]:
+        """
+        Get total portfolio value in USD across all currencies
+
+        Returns:
+            Total portfolio value in USD
+        """
+        accounts = self.get_accounts()
+        if not accounts:
+            return None
+
+        total_value = 0.0
+
+        for account in accounts:
+            currency = account.get("currency", "")
+
+            # Get available balance
+            if "available_balance" in account:
+                balance_obj = account["available_balance"]
+            elif "balance" in account:
+                balance_obj = account["balance"]
+            else:
+                continue
+
+            balance_amount = float(balance_obj.get("value", 0))
+
+            if balance_amount == 0:
+                continue
+
+            # If it's USD, add directly
+            if currency == "USD":
+                total_value += balance_amount
+                self.logger.info(f"  USD: ${balance_amount:.2f}")
+            else:
+                # Convert to USD using current price
+                product_id = f"{currency}-USD"
+                try:
+                    current_price = self.get_current_price(product_id)
+                    if current_price:
+                        value_usd = balance_amount * current_price
+                        total_value += value_usd
+                        self.logger.info(f"  {currency}: {balance_amount:.8f} @ ${current_price:.2f} = ${value_usd:.2f}")
+                except Exception as e:
+                    self.logger.warning(f"Could not get price for {product_id}: {e}")
+
+        self.logger.info(f"Total Portfolio Value: ${total_value:.2f}")
+        return total_value
 
     def get_products(self) -> Optional[List[Dict]]:
         """
