@@ -995,6 +995,77 @@ async function clearCache() {
     }
 }
 
+async function resetAccount() {
+    const statusDiv = document.getElementById('maintenance-status');
+
+    // Confirmation dialog
+    const confirmed = confirm(
+        '⚠️ RESET ACCOUNT - ARE YOU SURE?\n\n' +
+        'This will:\n' +
+        '• DELETE all open positions\n' +
+        '• DELETE all trade history\n' +
+        '• Reset capital to initial_capital setting\n' +
+        '• Clear position and trade files\n\n' +
+        'This action CANNOT be undone!\n\n' +
+        'Only use this for testing!\n\n' +
+        'Continue?'
+    );
+
+    if (!confirmed) {
+        statusDiv.innerHTML = '<p style="color: #666;">Reset cancelled</p>';
+        return;
+    }
+
+    // Double confirmation
+    const doubleConfirmed = confirm(
+        '🔥 FINAL WARNING 🔥\n\n' +
+        'You are about to permanently delete all trading data.\n\n' +
+        'Are you absolutely sure?'
+    );
+
+    if (!doubleConfirmed) {
+        statusDiv.innerHTML = '<p style="color: #666;">Reset cancelled</p>';
+        return;
+    }
+
+    try {
+        statusDiv.innerHTML = '<p style="color: #ff9800;">⏳ Resetting account...</p>';
+
+        const response = await fetch('/api/debug/reset-account', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            statusDiv.innerHTML = `
+                <p style="color: #4caf50;">✅ ${result.message}</p>
+                <p style="color: #2196f3; margin-top: 10px;">
+                    Files deleted:<br>
+                    ${result.deleted_files.map(f => `• ${f}`).join('<br>')}
+                </p>
+                <p style="color: #666; margin-top: 10px;">
+                    Refreshing dashboard...
+                </p>
+            `;
+
+            // Refresh the dashboard after 2 seconds
+            setTimeout(() => {
+                loadStatus();
+                loadDashboard();
+                statusDiv.innerHTML += '<p style="color: #4caf50;">Dashboard refreshed!</p>';
+            }, 2000);
+        } else {
+            statusDiv.innerHTML = `<p style="color: #f44336;">✗ ${result.error}</p>`;
+        }
+
+    } catch (error) {
+        console.error('Error resetting account:', error);
+        statusDiv.innerHTML = `<p style="color: #f44336;">✗ Error: ${error.message}</p>`;
+    }
+}
+
 // Live Logs Tab
 let autoRefreshInterval = null;
 

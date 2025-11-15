@@ -525,6 +525,56 @@ def test_claude():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@app.route('/api/debug/reset-account', methods=['POST'])
+def reset_account():
+    """Reset account for testing - delete all positions and trades"""
+    try:
+        deleted_files = []
+
+        # Delete positions file
+        positions_file = "data/positions.json"
+        if os.path.exists(positions_file):
+            os.remove(positions_file)
+            deleted_files.append(positions_file)
+
+        # Delete trades file
+        trades_file = "logs/trades.csv"
+        if os.path.exists(trades_file):
+            os.remove(trades_file)
+            deleted_files.append(trades_file)
+
+        # Reset bot state if running
+        if bot:
+            # Clear all positions
+            bot.risk_manager.positions.clear()
+
+            # Reset capital to initial
+            bot.risk_manager.current_capital = bot.config.get("initial_capital", 600.0)
+            bot.risk_manager.initial_capital = bot.risk_manager.current_capital
+
+            # Reset daily metrics
+            bot.risk_manager.daily_pnl = 0.0
+            bot.risk_manager.daily_trades = 0
+            bot.risk_manager.total_drawdown = 0.0
+
+            # Save empty positions file
+            bot.risk_manager._save_positions()
+
+            # Recreate empty trades CSV
+            bot.performance_tracker._initialize_trade_log()
+
+        return jsonify({
+            "success": True,
+            "message": "Account reset successfully! All positions and trades deleted.",
+            "deleted_files": deleted_files
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @app.route('/api/logs/bot')
 def get_bot_logs():
     """Get bot logs (last 2 days)"""
