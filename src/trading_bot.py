@@ -304,7 +304,11 @@ class TradingBot:
     def _build_market_context(self) -> Dict:
         """Build market context for Claude analysis"""
         # Get portfolio
-        balance = self.coinbase.get_balance("USD")
+        if self.dry_run:
+            balance = self.risk_manager.current_capital
+        else:
+            balance = self.coinbase.get_balance("USD")
+
         positions = self.risk_manager.get_all_positions()
 
         # Get market data
@@ -322,6 +326,21 @@ class TradingBot:
         # Get performance
         performance = self.performance_tracker.calculate_metrics()
 
+        # Build detailed market snapshot with key coins
+        market_snapshot = {}
+        key_coins = ["BTC-USD", "ETH-USD", "SOL-USD"]
+
+        for product_id in key_coins:
+            try:
+                price = self.data_collector.get_current_price(product_id, use_cache=True)
+                if price:
+                    market_snapshot[product_id] = {
+                        "price": price,
+                        "timestamp": datetime.now().isoformat()
+                    }
+            except Exception as e:
+                self.logger.debug(f"Could not get price for {product_id}: {e}")
+
         return {
             "portfolio": {
                 "balance_usd": balance,
@@ -329,7 +348,8 @@ class TradingBot:
                 "position_count": len(positions)
             },
             "market_data": {
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
+                "key_prices": market_snapshot
             },
             "screener_results": screener_results,
             "fear_greed": fear_greed,

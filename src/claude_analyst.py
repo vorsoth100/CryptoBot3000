@@ -149,6 +149,8 @@ class ClaudeAnalyst:
 **SCREENER RESULTS:**
 {json.dumps(clean_context.get('screener_results', []), indent=2)}
 
+Note: Each screener result includes technical indicators (RSI, MACD, Bollinger Bands, volume analysis) in the 'indicators' field.
+
 **FEAR & GREED INDEX:** {clean_context.get('fear_greed', {}).get('value', 'N/A')} ({clean_context.get('fear_greed', {}).get('classification', 'N/A')})
 **BTC DOMINANCE:** {clean_context.get('btc_dominance', 'N/A')}%
 
