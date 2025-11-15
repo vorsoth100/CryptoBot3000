@@ -51,9 +51,21 @@ class RateLimiter:
         self.calls.append(time.time())
 
 
+class EasternFormatter(logging.Formatter):
+    """Custom formatter that uses US/Eastern timezone"""
+
+    def formatTime(self, record, datefmt=None):
+        """Override formatTime to use Eastern timezone"""
+        eastern = pytz.timezone('US/Eastern')
+        dt = datetime.fromtimestamp(record.created, eastern)
+        if datefmt:
+            return dt.strftime(datefmt)
+        return dt.strftime('%Y-%m-%d %H:%M:%S %Z')
+
+
 def setup_logging(log_file: str = "logs/bot.log", level: str = "INFO") -> logging.Logger:
     """
-    Set up logging configuration
+    Set up logging configuration with US/Eastern timezone
 
     Args:
         log_file: Path to log file
@@ -74,10 +86,10 @@ def setup_logging(log_file: str = "logs/bot.log", level: str = "INFO") -> loggin
     console_handler = logging.StreamHandler()
     console_handler.setLevel(getattr(logging, level.upper()))
 
-    # Formatter
-    formatter = logging.Formatter(
+    # Formatter with Eastern timezone
+    formatter = EasternFormatter(
         '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
+        datefmt='%Y-%m-%d %H:%M:%S %Z'
     )
     file_handler.setFormatter(formatter)
     console_handler.setFormatter(formatter)

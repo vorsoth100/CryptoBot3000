@@ -105,15 +105,19 @@ class DataCollector:
         if self._is_cache_valid(cache_key):
             return self.cache[cache_key]
 
-        # Calculate start/end times
+        # Calculate start/end times as Unix timestamps
         end = datetime.utcnow()
         start = end - timedelta(days=days)
+
+        # Convert to Unix timestamps (seconds since epoch)
+        start_unix = int(start.timestamp())
+        end_unix = int(end.timestamp())
 
         candles = self.coinbase.get_candles(
             product_id,
             granularity,
-            start=start.isoformat(),
-            end=end.isoformat()
+            start=str(start_unix),
+            end=str(end_unix)
         )
 
         if not candles:
