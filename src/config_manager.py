@@ -48,8 +48,23 @@ class ConfigManager:
         "screener_enabled": True,
         "screener_mode": "breakouts",
         "screener_coins": [
+            # Top Tier (Highest Liquidity)
             "BTC-USD", "ETH-USD", "SOL-USD", "XRP-USD",
-            "ADA-USD", "MATIC-USD", "LINK-USD", "DOT-USD", "AVAX-USD"
+            # Layer 1s
+            "ADA-USD", "AVAX-USD", "DOT-USD", "ATOM-USD", "NEAR-USD",
+            "APT-USD", "SUI-USD", "SEI-USD",
+            # DeFi
+            "LINK-USD", "UNI-USD", "AAVE-USD", "MKR-USD",
+            # Layer 2s & Scaling
+            "MATIC-USD", "ARB-USD", "OP-USD",
+            # AI & Gaming
+            "RENDER-USD", "FET-USD", "GRT-USD",
+            # Trending/Momentum
+            "PEPE-USD", "WIF-USD", "BONK-USD",
+            # Established Alts
+            "LTC-USD", "BCH-USD", "ETC-USD",
+            # Staking/Yield
+            "TIA-USD", "INJ-USD", "RUNE-USD"
         ],
         "screener_min_market_cap": 5000000000,
         "screener_min_volume_24h": 500000000,
@@ -73,12 +88,12 @@ class ConfigManager:
 
         # Claude AI Analyst
         "claude_enabled": True,
-        "claude_analysis_mode": "advisory",
-        "claude_analysis_schedule": "daily",
+        "claude_analysis_mode": "semi_autonomous",  # Changed from advisory
+        "claude_analysis_schedule": "twice_daily",  # Changed from daily
         "claude_analysis_time_utc": "00:00",
         "claude_confidence_threshold": 80,
         "claude_max_trade_suggestions": 3,
-        "claude_risk_tolerance": "conservative",
+        "claude_risk_tolerance": "moderate",  # Changed from conservative
         "claude_include_fear_greed": True,
         "claude_include_btc_dominance": True,
         "claude_model": "claude-sonnet-4-5-20250929",

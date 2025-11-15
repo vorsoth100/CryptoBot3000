@@ -187,6 +187,37 @@ class MarketScreener:
             if market_data.get("price_change_7d", 0) > 10:
                 score += 20
 
+        elif mode == "momentum":
+            # Hot coins: high volume + strong recent gains + momentum
+            # Perfect for catching trending "hot" coins early
+
+            # Volume spike is critical for momentum
+            if signal_data['volume_spike']:
+                score += 35
+
+            # Strong buy signal
+            if signal_data['signal'] == 'strong_buy':
+                score += 30
+            elif signal_data['signal'] == 'buy':
+                score += 15
+
+            # Recent price action (24h and 7d gains)
+            price_change_24h = market_data.get("price_change_24h", 0)
+            price_change_7d = market_data.get("price_change_7d", 0)
+
+            if price_change_24h > 10:  # Up 10%+ today
+                score += 25
+            elif price_change_24h > 5:  # Up 5%+ today
+                score += 15
+
+            if price_change_7d > 20:  # Up 20%+ this week
+                score += 10
+
+            # RSI not overbought (room to run)
+            rsi = signal_data['indicators'].get('rsi', 50)
+            if rsi < 70:  # Not overbought yet
+                score += 5
+
             if market_data.get("price_change_30d", 0) > 20:
                 score += 10
 

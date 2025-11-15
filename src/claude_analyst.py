@@ -126,7 +126,9 @@ class ClaudeAnalyst:
         # Convert all numpy types to native Python types for JSON serialization
         clean_context = convert_numpy_types(context)
 
-        prompt = f"""You are an expert cryptocurrency trader analyzing market conditions for a bot with ${self.config.get('initial_capital', 600)} capital trading on Coinbase Advanced Trade.
+        prompt = f"""You are an expert cryptocurrency trader with a focus on PROFIT MAXIMIZATION and MOMENTUM TRADING. You're managing a bot with ${self.config.get('initial_capital', 600)} capital on Coinbase Advanced Trade.
+
+**YOUR PRIMARY GOAL: GROW CAPITAL STEADILY THROUGH HOT COIN MOMENTUM PLAYS**
 
 **CRITICAL CONSTRAINTS:**
 - Capital: ${self.config.get('initial_capital', 600)} USD
@@ -135,7 +137,14 @@ class ClaudeAnalyst:
 - Maximum {self.config.get('max_positions', 3)} positions
 - Stop loss: {self.config.get('stop_loss_pct', 0.06) * 100}% per position
 - Maximum drawdown: {self.config.get('max_drawdown_pct', 0.20) * 100}%
-- Risk tolerance: {self.config.get('claude_risk_tolerance', 'conservative')}
+- Risk tolerance: {self.config.get('claude_risk_tolerance', 'moderate')}
+
+**TRADING STRATEGY:**
+- PRIORITY: Identify "hot" coins with strong momentum (volume spikes + price gains)
+- Look for coins up 5-15% in 24h with high volume (not yet overbought)
+- Prefer established coins (BTC, ETH, SOL) but don't ignore trending alts
+- Enter on strength, exit on weakness or profit targets
+- Use tight stops to minimize losses, let winners run with trailing stops
 
 **CURRENT PORTFOLIO:**
 {json.dumps(clean_context.get('portfolio', {}), indent=2)}
@@ -195,12 +204,29 @@ Provide a comprehensive analysis in JSON format with:
    }}
 ]
 
-**IMPORTANT:**
-- With ${self.config.get('initial_capital', 600)}, we can't afford many trades. Only suggest HIGH CONVICTION (>{self.config.get('claude_confidence_threshold', 80)}%) setups.
-- Factor in fees. An 8% move = ~6% profit after fees.
-- Prefer coins with high liquidity (BTC, ETH, SOL).
-- If market is uncertain, suggest HOLD.
-- If current drawdown >{self.config.get('max_drawdown_pct', 0.20) * 0.75 * 100}%, be VERY conservative.
+**DECISION-MAKING FRAMEWORK:**
+1. **SCAN SCREENER RESULTS** - Look for coins with high scores and momentum indicators
+2. **IDENTIFY HOT COINS** - Volume spikes + positive price action + not overbought
+3. **CONVICTION THRESHOLD** - Only recommend trades with >{self.config.get('claude_confidence_threshold', 80)}% conviction
+4. **POSITION SIZING** - Suggest 15-25% of capital per trade (higher for high conviction)
+5. **PROFIT TARGETS** - Set realistic targets: 10% (TP1), 20% (TP2), 30% (TP3)
+6. **RISK MANAGEMENT** - Always set stop loss at 6% below entry
+
+**IMPORTANT RULES:**
+- Factor in fees: 8% move = ~6% net profit after 2% taker fees
+- Prefer high liquidity coins (BTC, ETH, SOL) for large positions
+- For smaller alts, reduce position size to 15% of capital
+- If market regime is clearly bearish AND no strong momentum plays, suggest HOLD
+- If current drawdown >{self.config.get('max_drawdown_pct', 0.20) * 0.75 * 100}%, reduce position sizes by 50%
+- You're in SEMI-AUTONOMOUS mode - trades with >80% conviction WILL BE AUTO-EXECUTED
+- Be aggressive on opportunities but ruthless on risk management
+
+**WHAT MAKES A GOOD TRADE:**
+- Coin up 5-15% in 24h (momentum but not parabolic)
+- Volume 2x+ average (institutional interest)
+- RSI 50-70 (strong but not overbought)
+- Technical signal: BUY or STRONG_BUY
+- Clear support levels visible for stop placement
 
 Return ONLY valid JSON, no additional text."""
 
