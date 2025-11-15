@@ -79,9 +79,40 @@ def update_config():
         config_manager.update(updates)
         config_manager.save()
 
+        # If bot is running, reload its config
+        if bot:
+            bot.config_manager.load()
+            bot.config = bot.config_manager.get_all()
+
         return jsonify({"success": True, "message": "Configuration updated"})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 400
+
+
+@app.route('/api/config/reset', methods=['POST'])
+def reset_config():
+    """Reset configuration to defaults"""
+    try:
+        import os
+        config_path = "data/config.json"
+
+        # Backup old config
+        if os.path.exists(config_path):
+            backup_path = f"{config_path}.backup"
+            os.rename(config_path, backup_path)
+
+        # Reload default config
+        config_manager = ConfigManager()
+        config_manager.save()
+
+        # If bot is running, reload its config
+        if bot:
+            bot.config_manager.load()
+            bot.config = bot.config_manager.get_all()
+
+        return jsonify({"success": True, "message": "Configuration reset to defaults"})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 @app.route('/api/config/preset/<preset_name>', methods=['POST'])
