@@ -240,6 +240,7 @@ def run_screener():
 
     try:
         import logging
+        from src.claude_analyst import convert_numpy_types
         logger = logging.getLogger("CryptoBot.Web")
 
         logger.info("Running screener via API...")
@@ -250,7 +251,10 @@ def run_screener():
             for i, opp in enumerate(opportunities[:3], 1):
                 logger.info(f"  {i}. {opp['product_id']}: {opp['signal']} (score: {opp['score']:.1f}, confidence: {opp['confidence']:.0f}%)")
 
-        return jsonify(opportunities)
+        # Convert numpy types to native Python types for JSON serialization
+        clean_opportunities = convert_numpy_types(opportunities)
+
+        return jsonify(clean_opportunities)
 
     except Exception as e:
         import traceback
