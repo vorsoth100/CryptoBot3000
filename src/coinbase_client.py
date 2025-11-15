@@ -368,11 +368,29 @@ class CoinbaseClient:
         """
         ticker = self.get_ticker(product_id)
         if ticker:
+            # Check for direct price field first
             if "price" in ticker:
                 return float(ticker["price"])
-            else:
-                self.logger.error(f"Ticker response for {product_id} missing 'price' field. Response: {ticker}")
-                return None
+
+            # Fallback: check for trades array (new API format)
+            if "trades" in ticker and len(ticker["trades"]) > 0:
+                # Get most recent trade price
+                latest_trade = ticker["trades"][0]
+                if "price" in latest_trade:
+                    return float(latest_trade["price"])
+
+            # Fallback: check for best_bid/best_ask
+            if "best_bid" in ticker and "best_ask" in ticker:
+                try:
+                    bid = float(ticker["best_bid"])
+                    ask = float(ticker["best_ask"])
+                    # Return mid-point
+                    return (bid + ask) / 2
+                except (ValueError, TypeError):
+                    pass
+
+            self.logger.error(f"Ticker response for {product_id} has unexpected format. Response keys: {list(ticker.keys())[:10]}")
+            return None
         else:
             self.logger.error(f"get_ticker returned None for {product_id}")
             return None

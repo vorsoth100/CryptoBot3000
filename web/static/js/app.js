@@ -540,11 +540,11 @@ async function runScreener() {
         // Display results in a table
         let html = '<table style="width: 100%; border-collapse: collapse;">';
         html += '<thead><tr style="background: #f5f5f5;">';
-        html += '<th style="padding: 8px; text-align: left;">Coin</th>';
-        html += '<th style="padding: 8px; text-align: left;">Signal</th>';
-        html += '<th style="padding: 8px; text-align: right;">Score</th>';
-        html += '<th style="padding: 8px; text-align: right;">Confidence</th>';
-        html += '<th style="padding: 8px; text-align: right;">Price</th>';
+        html += '<th style="padding: 8px; text-align: left; color: #333; font-weight: 600;">Coin</th>';
+        html += '<th style="padding: 8px; text-align: left; color: #333; font-weight: 600;">Signal</th>';
+        html += '<th style="padding: 8px; text-align: right; color: #333; font-weight: 600;">Score</th>';
+        html += '<th style="padding: 8px; text-align: right; color: #333; font-weight: 600;">Confidence</th>';
+        html += '<th style="padding: 8px; text-align: right; color: #333; font-weight: 600;">Price</th>';
         html += '</tr></thead><tbody>';
 
         opportunities.forEach((opp, index) => {
