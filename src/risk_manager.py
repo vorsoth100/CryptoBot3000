@@ -62,17 +62,16 @@ class RiskManager:
         # Track positions
         self.positions: Dict[str, Position] = {}
 
-        # Load existing positions from file
-        self._load_positions()
-
-        # Track simulated capital (for dry run mode)
-        self.current_capital = config.get("initial_capital", 600.0)
-        self.initial_capital = self.current_capital
-
-        # Track daily metrics
+        # Initialize capital and metrics BEFORE loading positions
+        # (These will be overwritten by _load_positions if saved state exists)
+        self.initial_capital = config.get("initial_capital", 600.0)
+        self.current_capital = self.initial_capital
         self.daily_pnl = 0.0
         self.daily_trades = 0
         self.total_drawdown = 0.0
+
+        # Load existing positions from file (will restore capital if metadata exists)
+        self._load_positions()
 
     def calculate_position_size_usd(self, balance: float) -> float:
         """
@@ -444,6 +443,7 @@ class RiskManager:
                 # Load metadata (capital state) if it exists
                 if '_metadata' in data:
                     metadata = data['_metadata']
+                    self.initial_capital = metadata.get('initial_capital', self.initial_capital)
                     self.current_capital = metadata.get('current_capital', self.current_capital)
                     self.daily_pnl = metadata.get('daily_pnl', 0.0)
                     self.daily_trades = metadata.get('daily_trades', 0)
