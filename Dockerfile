@@ -25,6 +25,10 @@ RUN ldconfig
 # Set library path for TA-Lib
 ENV LD_LIBRARY_PATH=/usr/lib:$LD_LIBRARY_PATH
 
+# Disable Python bytecode cache to ensure fresh code on rebuild
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
 # Copy requirements
 COPY requirements.txt .
 

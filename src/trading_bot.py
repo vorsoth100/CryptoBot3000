@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from typing import Dict, Optional
 import sys
 
+from src import __version__
 from src.config_manager import ConfigManager
 from src.coinbase_client import CoinbaseClient
 from src.data_collector import DataCollector
@@ -42,7 +43,7 @@ class TradingBot:
         self.logger = setup_logging(log_file, log_level)
 
         self.logger.info("=" * 80)
-        self.logger.info("CryptoBot Starting...")
+        self.logger.info(f"CryptoBot v{__version__} Starting...")
         self.logger.info("=" * 80)
 
         # Validate config

@@ -217,6 +217,15 @@ header h1 {
     color: #e0245e;
 }
 
+/* Color classes for tables and general use */
+.positive {
+    color: #4caf50 !important;
+}
+
+.negative {
+    color: #f44336 !important;
+}
+
 /* Positions Table */
 .positions-table {
     width: 100%;
