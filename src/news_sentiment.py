@@ -38,6 +38,11 @@ class NewsSentiment:
         self.all_news_cache = None
         self.all_news_cache_time = None
 
+        # Failure tracking to prevent retry storms
+        self.last_failure_time = None
+        self.failure_count = 0
+        self.backoff_minutes = 5  # Wait 5 minutes after repeated failures
+
     def _is_cache_valid(self, key: str) -> bool:
         """Check if cached data is still valid"""
         if key not in self.cache_timestamps:
@@ -76,6 +81,18 @@ class NewsSentiment:
             if age.total_seconds() < (self.cache_minutes * 60):
                 return self.all_news_cache
 
+        # Check if we're in backoff period after failures
+        if self.last_failure_time:
+            time_since_failure = (datetime.now() - self.last_failure_time).total_seconds() / 60
+            if time_since_failure < self.backoff_minutes:
+                # Still in backoff period - return cached data or None
+                if self.failure_count >= 3:
+                    self.logger.warning(
+                        f"In backoff period ({time_since_failure:.1f}/{self.backoff_minutes} min) "
+                        f"after {self.failure_count} failures. Using cached data."
+                    )
+                return self.all_news_cache  # May be None or old data
+
         try:
             # Rate limiting
             self._rate_limit()
@@ -100,12 +117,32 @@ class NewsSentiment:
             self.all_news_cache = data["results"]
             self.all_news_cache_time = datetime.now()
 
+            # Reset failure tracking on success
+            self.failure_count = 0
+            self.last_failure_time = None
+
             self.logger.info(f"Cached {len(self.all_news_cache)} news items")
             return self.all_news_cache
 
+        except requests.exceptions.HTTPError as e:
+            # Track failures for backoff
+            self.failure_count += 1
+            self.last_failure_time = datetime.now()
+
+            if e.response and e.response.status_code == 429:
+                self.logger.error(
+                    f"Rate limit exceeded (429). Failure #{self.failure_count}. "
+                    f"Entering {self.backoff_minutes} min backoff period."
+                )
+            else:
+                self.logger.error(f"HTTP error fetching news: {e}")
+            return self.all_news_cache  # Return old cache if available
+
         except Exception as e:
+            self.failure_count += 1
+            self.last_failure_time = datetime.now()
             self.logger.error(f"Error fetching news from Crypto Panic: {e}")
-            return None
+            return self.all_news_cache  # Return old cache if available
 
     def get_sentiment(self, product_id: str, use_cache: bool = True) -> Optional[Dict]:
         """
@@ -332,23 +369,13 @@ class NewsSentiment:
     def get_sentiment_summary(self) -> str:
         """Get a text summary of overall market news sentiment"""
         try:
-            # Get overall crypto market news
-            self._rate_limit()
+            # Use batch cache instead of making separate API call
+            all_news = self._fetch_all_news()
 
-            params = {
-                "auth_token": self.config.get("cryptopanic_api_key", "free"),
-                "filter": "hot",
-                "public": "true"
-            }
-
-            response = requests.get(self.API_URL, params=params, timeout=10)
-            response.raise_for_status()
-            data = response.json()
-
-            if "results" not in data or not data["results"]:
+            if not all_news:
                 return "No recent market news available"
 
-            news = data["results"][:10]  # Top 10 stories
+            news = all_news[:10]  # Top 10 stories
 
             # Count sentiment
             bullish = sum(item.get("votes", {}).get("positive", 0) for item in news)
