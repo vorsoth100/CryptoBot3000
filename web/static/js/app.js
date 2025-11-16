@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Load initial data
     loadStatus();
     loadConfig();
+    loadDashboard();  // Load dashboard data immediately on page load
 
     // Setup auto-refresh
     startAutoRefresh();
@@ -70,6 +71,7 @@ function loadTabData(tabName) {
 function setupEventListeners() {
     document.getElementById('start-bot-btn').addEventListener('click', startBot);
     document.getElementById('stop-bot-btn').addEventListener('click', stopBot);
+    document.getElementById('restart-bot-btn').addEventListener('click', restartBot);
     document.getElementById('refresh-btn').addEventListener('click', () => loadDashboard());
 }
 
@@ -108,15 +110,40 @@ function updateStatusDisplay(data) {
     const indicator = document.getElementById('bot-status-indicator');
     const text = document.getElementById('bot-status-text');
     const modeValue = document.getElementById('mode-value');
+    const startBtn = document.getElementById('start-bot-btn');
+    const stopBtn = document.getElementById('stop-bot-btn');
+    const restartBtn = document.getElementById('restart-bot-btn');
 
     if (data.running) {
         indicator.className = 'status-indicator running';
         indicator.textContent = '🟢';
         text.textContent = 'Running';
+
+        // Disable start button, enable stop and restart
+        startBtn.disabled = true;
+        startBtn.style.opacity = '0.5';
+        startBtn.style.cursor = 'not-allowed';
+        stopBtn.disabled = false;
+        stopBtn.style.opacity = '1';
+        stopBtn.style.cursor = 'pointer';
+        restartBtn.disabled = false;
+        restartBtn.style.opacity = '1';
+        restartBtn.style.cursor = 'pointer';
     } else {
         indicator.className = 'status-indicator stopped';
         indicator.textContent = '⚫';
         text.textContent = 'Stopped';
+
+        // Enable start button, disable stop and restart
+        startBtn.disabled = false;
+        startBtn.style.opacity = '1';
+        startBtn.style.cursor = 'pointer';
+        stopBtn.disabled = true;
+        stopBtn.style.opacity = '0.5';
+        stopBtn.style.cursor = 'not-allowed';
+        restartBtn.disabled = true;
+        restartBtn.style.opacity = '0.5';
+        restartBtn.style.cursor = 'not-allowed';
     }
 
     if (data.dry_run) {
@@ -380,6 +407,39 @@ async function stopBot() {
     } catch (error) {
         console.error('Error stopping bot:', error);
         alert('Error stopping bot');
+    }
+}
+
+async function restartBot() {
+    if (!confirm('Restart the bot? This will stop and start it.')) return;
+
+    try {
+        // First stop
+        const stopResponse = await fetch('/api/bot/stop', {method: 'POST'});
+        const stopResult = await stopResponse.json();
+
+        if (!stopResult.success) {
+            alert('Error stopping bot: ' + stopResult.error);
+            return;
+        }
+
+        // Wait 2 seconds
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        // Then start
+        const startResponse = await fetch('/api/bot/start', {method: 'POST'});
+        const startResult = await startResponse.json();
+
+        if (startResult.success) {
+            alert('Bot restarted successfully!');
+            setTimeout(loadStatus, 1000);
+        } else {
+            alert('Error starting bot: ' + startResult.error);
+        }
+
+    } catch (error) {
+        console.error('Error restarting bot:', error);
+        alert('Error restarting bot');
     }
 }
 
@@ -751,13 +811,72 @@ async function loadAllTrades() {
             return;
         }
 
-        displayRecentTrades(trades.reverse());
-        document.getElementById('all-trades-container').innerHTML =
-            document.getElementById('recent-trades-container').innerHTML;
+        // Display all trades in reverse order (newest first)
+        displayAllTradesTable(trades.reverse(), container);
 
     } catch (error) {
         console.error('Error loading trades:', error);
+        document.getElementById('all-trades-container').innerHTML =
+            `<p class="no-data">Error loading trades: ${error.message}</p>`;
     }
+}
+
+function displayAllTradesTable(trades, container) {
+    if (!trades || trades.length === 0) {
+        container.innerHTML = '<p class="no-data">No trades</p>';
+        return;
+    }
+
+    let html = '<div style="max-height: 600px; overflow-y: auto;">';
+
+    trades.forEach((trade, index) => {
+        const isBuy = trade.side === 'BUY';
+        const isClosed = trade.net_pnl !== null && trade.net_pnl !== undefined;
+        const tradeValue = trade.quantity * trade.price;
+
+        html += `<div class="trade-card" style="margin-bottom: 15px; padding: 15px; border: 1px solid #ddd; border-radius: 4px;">`;
+        html += `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">`;
+        html += `<div style="display: flex; align-items: center; gap: 10px;">`;
+        html += `<h3 style="margin: 0;">${trade.product_id}</h3>`;
+        html += `<span class="trade-side ${isBuy ? 'buy' : 'sell'}" style="padding: 4px 8px; border-radius: 4px; font-weight: bold; ${isBuy ? 'background: #e8f5e9; color: #2e7d32;' : 'background: #ffebee; color: #c62828;'}">${trade.side}</span>`;
+
+        if (isClosed) {
+            const pnlClass = trade.net_pnl >= 0 ? 'positive' : 'negative';
+            const pnlColor = trade.net_pnl >= 0 ? '#4caf50' : '#f44336';
+            html += `<span style="padding: 4px 8px; border-radius: 4px; font-weight: bold; color: white; background: ${pnlColor};">`;
+            html += `${trade.net_pnl >= 0 ? '+' : ''}${formatUSD(trade.net_pnl)} (${trade.pnl_pct >= 0 ? '+' : ''}${trade.pnl_pct.toFixed(2)}%)`;
+            html += `</span>`;
+        } else {
+            html += `<span style="padding: 4px 8px; border-radius: 4px; background: #e0e0e0; color: #666;">OPEN</span>`;
+        }
+
+        html += `</div>`;
+        html += `<div style="color: #666; font-size: 0.9em;">${new Date(trade.timestamp).toLocaleString()}</div>`;
+        html += `</div>`;
+
+        html += `<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; font-size: 0.95em;">`;
+        html += `<div><strong>Price:</strong> ${formatUSD(trade.price)}</div>`;
+        html += `<div><strong>Quantity:</strong> ${trade.quantity.toFixed(6)}</div>`;
+        html += `<div><strong>Trade Value:</strong> ${formatUSD(tradeValue)}</div>`;
+        html += `<div><strong>Fees:</strong> ${formatUSD(trade.fee_usd)}</div>`;
+
+        if (isClosed) {
+            const totalCost = tradeValue + trade.fee_usd;
+            html += `<div><strong>Total Cost:</strong> ${formatUSD(totalCost)}</div>`;
+            html += `<div><strong>Hold Time:</strong> ${trade.hold_time_hours ? trade.hold_time_hours.toFixed(1) + 'h' : 'N/A'}</div>`;
+        } else {
+            const totalCost = tradeValue + trade.fee_usd;
+            html += `<div><strong>Total Cost:</strong> ${formatUSD(totalCost)}</div>`;
+        }
+
+        html += `<div><strong>Reason:</strong> ${trade.reason || 'N/A'}</div>`;
+        html += `<div><strong>Notes:</strong> ${trade.notes || 'N/A'}</div>`;
+        html += `</div>`;
+        html += `</div>`;
+    });
+
+    html += '</div>';
+    container.innerHTML = html;
 }
 
 // Performance
