@@ -30,9 +30,13 @@ class NewsSentiment:
         self.cache_timestamps = {}
         self.cache_minutes = config.get("news_sentiment_cache_minutes", 30)
 
-        # Rate limiting
+        # Rate limiting - free tier is very limited
         self.last_request_time = 0
-        self.min_request_interval = 1.0  # 1 second between requests
+        self.min_request_interval = 3.0  # 3 seconds between requests for free tier
+
+        # Batch cache for all news (free tier doesn't support per-coin filtering)
+        self.all_news_cache = None
+        self.all_news_cache_time = None
 
     def _is_cache_valid(self, key: str) -> bool:
         """Check if cached data is still valid"""
@@ -58,9 +62,56 @@ class NewsSentiment:
         """Extract coin symbol from product ID (e.g., BTC from BTC-USD)"""
         return product_id.split('-')[0]
 
+    def _fetch_all_news(self) -> Optional[List[Dict]]:
+        """
+        Fetch all crypto news (free tier doesn't support coin filtering)
+        Uses aggressive caching to minimize API calls
+
+        Returns:
+            List of news items or None
+        """
+        # Check if cached news is still valid (30 min cache)
+        if self.all_news_cache and self.all_news_cache_time:
+            age = datetime.now() - self.all_news_cache_time
+            if age.total_seconds() < (self.cache_minutes * 60):
+                return self.all_news_cache
+
+        try:
+            # Rate limiting
+            self._rate_limit()
+
+            # Free tier: fetch general crypto news without coin filter
+            params = {
+                "auth_token": self.config.get("cryptopanic_api_key", "free"),
+                "filter": "hot",  # Only hot/important news
+                "public": "true"
+            }
+
+            self.logger.info("Fetching all crypto news from Crypto Panic...")
+            response = requests.get(self.API_URL, params=params, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+
+            if "results" not in data:
+                self.logger.warning("No results in Crypto Panic response")
+                return None
+
+            # Cache the results
+            self.all_news_cache = data["results"]
+            self.all_news_cache_time = datetime.now()
+
+            self.logger.info(f"Cached {len(self.all_news_cache)} news items")
+            return self.all_news_cache
+
+        except Exception as e:
+            self.logger.error(f"Error fetching news from Crypto Panic: {e}")
+            return None
+
     def get_sentiment(self, product_id: str, use_cache: bool = True) -> Optional[Dict]:
         """
         Get news sentiment for a cryptocurrency
+
+        Free tier optimization: Fetches all news once, filters locally by coin
 
         Args:
             product_id: Product ID (e.g., BTC-USD)
@@ -90,29 +141,45 @@ class NewsSentiment:
         try:
             symbol = self._extract_symbol(product_id)
 
-            # Rate limiting
-            self._rate_limit()
+            # Fetch all news (uses batch caching)
+            all_news = self._fetch_all_news()
 
-            # Fetch news from Crypto Panic
+            if not all_news:
+                return self._empty_sentiment()
+
+            # Filter news for this specific coin locally
+            coin_news = []
             lookback_hours = self.config.get("news_sentiment_lookback_hours", 24)
+            cutoff_time = datetime.utcnow() - timedelta(hours=lookback_hours)
 
-            params = {
-                "auth_token": self.config.get("cryptopanic_api_key", "free"),  # 'free' for public tier
-                "currencies": symbol,
-                "filter": "hot",  # Only hot/important news
-                "public": "true"
-            }
+            for item in all_news:
+                try:
+                    # Check if this news mentions our coin
+                    currencies = item.get("currencies", [])
+                    if not currencies:
+                        continue
 
-            response = requests.get(self.API_URL, params=params, timeout=10)
-            response.raise_for_status()
-            data = response.json()
+                    # Check if coin is mentioned in currencies
+                    coin_mentioned = False
+                    for currency in currencies:
+                        currency_code = currency.get("code", "").upper()
+                        if currency_code == symbol.upper():
+                            coin_mentioned = True
+                            break
 
-            if "results" not in data:
-                self.logger.warning(f"No results in Crypto Panic response for {symbol}")
-                return None
+                    if not coin_mentioned:
+                        continue
 
-            # Analyze sentiment from news
-            sentiment_data = self._analyze_news(data["results"], lookback_hours)
+                    # Check time
+                    published_at = datetime.strptime(item["published_at"], "%Y-%m-%dT%H:%M:%SZ")
+                    if published_at >= cutoff_time:
+                        coin_news.append(item)
+
+                except Exception as e:
+                    continue
+
+            # Analyze sentiment from filtered news
+            sentiment_data = self._analyze_news(coin_news, lookback_hours)
 
             # Add product_id for reference
             sentiment_data["product_id"] = product_id
@@ -124,31 +191,22 @@ class NewsSentiment:
             return sentiment_data
 
         except Exception as e:
-            self.logger.error(f"Error fetching news sentiment for {product_id}: {e}")
-            return None
+            self.logger.error(f"Error analyzing news sentiment for {product_id}: {e}")
+            return self._empty_sentiment()
 
     def _analyze_news(self, news_items: List[Dict], lookback_hours: int) -> Dict:
         """
         Analyze news sentiment from Crypto Panic results
 
         Args:
-            news_items: List of news items from API
-            lookback_hours: How many hours to look back
+            news_items: List of news items (already filtered by time)
+            lookback_hours: How many hours to look back (not used, kept for compatibility)
 
         Returns:
             Sentiment analysis dictionary
         """
-        # Filter news by time
-        cutoff_time = datetime.utcnow() - timedelta(hours=lookback_hours)
-        recent_news = []
-
-        for item in news_items:
-            try:
-                published_at = datetime.strptime(item["published_at"], "%Y-%m-%dT%H:%M:%SZ")
-                if published_at >= cutoff_time:
-                    recent_news.append(item)
-            except:
-                continue
+        # News is already filtered by caller
+        recent_news = news_items
 
         if not recent_news:
             return self._empty_sentiment()
