@@ -631,6 +631,149 @@ def get_claude_logs():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route('/api/debug/export-all', methods=['GET'])
+def export_all_data():
+    """Export all system data for analysis"""
+    try:
+        export_data = {
+            "export_timestamp": datetime.now().isoformat(),
+            "version": __version__,
+            "system_info": {
+                "timezone": "US/Eastern",
+                "current_time": datetime.now(EASTERN).strftime('%Y-%m-%d %H:%M:%S %Z')
+            }
+        }
+
+        # 1. Configuration Settings
+        try:
+            config_file = "data/config.json"
+            if os.path.exists(config_file):
+                with open(config_file, 'r') as f:
+                    export_data["configuration"] = json.load(f)
+            else:
+                export_data["configuration"] = {"error": "No config file found"}
+        except Exception as e:
+            export_data["configuration"] = {"error": str(e)}
+
+        # 2. Open Positions
+        try:
+            positions_file = "data/positions.json"
+            if os.path.exists(positions_file):
+                with open(positions_file, 'r') as f:
+                    positions_data = json.load(f)
+                    export_data["positions"] = positions_data
+            else:
+                export_data["positions"] = {"_metadata": {}, "positions": {}}
+        except Exception as e:
+            export_data["positions"] = {"error": str(e)}
+
+        # 3. All Trades (from CSV)
+        try:
+            if bot and hasattr(bot, 'performance_tracker'):
+                trades = bot.performance_tracker.get_all_trades()
+                export_data["trades"] = trades
+                export_data["trade_count"] = len(trades)
+            else:
+                export_data["trades"] = []
+                export_data["trade_count"] = 0
+        except Exception as e:
+            export_data["trades"] = {"error": str(e)}
+
+        # 4. Performance Metrics
+        try:
+            if bot and hasattr(bot, 'performance_tracker'):
+                metrics = bot.performance_tracker.calculate_metrics()
+                export_data["performance_metrics"] = metrics
+            else:
+                export_data["performance_metrics"] = {"error": "Bot not running"}
+        except Exception as e:
+            export_data["performance_metrics"] = {"error": str(e)}
+
+        # 5. Current Balance/Capital State
+        try:
+            if bot and hasattr(bot, 'risk_manager'):
+                export_data["capital_state"] = {
+                    "current_capital": bot.risk_manager.current_capital,
+                    "initial_capital": bot.risk_manager.initial_capital,
+                    "daily_pnl": bot.risk_manager.daily_pnl,
+                    "daily_trades": bot.risk_manager.daily_trades,
+                    "total_drawdown": bot.risk_manager.total_drawdown,
+                    "open_positions_count": len(bot.risk_manager.positions)
+                }
+            else:
+                export_data["capital_state"] = {"error": "Bot not running"}
+        except Exception as e:
+            export_data["capital_state"] = {"error": str(e)}
+
+        # 6. Screener Configuration
+        try:
+            if bot and hasattr(bot, 'screener'):
+                export_data["screener_config"] = {
+                    "mode": bot.screener.mode,
+                    "monitored_coins": bot.screener.get_monitored_coins(),
+                    "coin_count": len(bot.screener.get_monitored_coins())
+                }
+            else:
+                export_data["screener_config"] = {"error": "Bot not running or screener not available"}
+        except Exception as e:
+            export_data["screener_config"] = {"error": str(e)}
+
+        # 7. Recent Screener Results (if available)
+        try:
+            screener_cache_file = "data/screener_cache.json"
+            if os.path.exists(screener_cache_file):
+                with open(screener_cache_file, 'r') as f:
+                    export_data["screener_results"] = json.load(f)
+            else:
+                export_data["screener_results"] = {"note": "No cached screener results"}
+        except Exception as e:
+            export_data["screener_results"] = {"error": str(e)}
+
+        # 8. Claude Analysis History (recent logs)
+        try:
+            claude_log_file = "logs/claude_analysis.log"
+            if os.path.exists(claude_log_file):
+                with open(claude_log_file, 'r') as f:
+                    content = f.read()
+                    # Get last 50 lines or 5000 characters, whichever is smaller
+                    lines = content.split('\n')
+                    recent_lines = lines[-50:] if len(lines) > 50 else lines
+                    export_data["claude_analysis_log"] = '\n'.join(recent_lines)
+            else:
+                export_data["claude_analysis_log"] = "No Claude analysis logs available"
+        except Exception as e:
+            export_data["claude_analysis_log"] = {"error": str(e)}
+
+        # 9. Bot Logs (recent)
+        try:
+            bot_log_file = "logs/cryptobot.log"
+            if os.path.exists(bot_log_file):
+                with open(bot_log_file, 'r') as f:
+                    content = f.read()
+                    lines = content.split('\n')
+                    recent_lines = lines[-100:] if len(lines) > 100 else lines
+                    export_data["bot_logs"] = '\n'.join(recent_lines)
+            else:
+                export_data["bot_logs"] = "No bot logs available"
+        except Exception as e:
+            export_data["bot_logs"] = {"error": str(e)}
+
+        # 10. Bot Status
+        try:
+            export_data["bot_status"] = {
+                "running": bot is not None and bot.running if bot else False,
+                "dry_run": bot.config.get("dry_run") if bot else None,
+                "mode": "DRY RUN" if (bot and bot.config.get("dry_run")) else "LIVE"
+            }
+        except Exception as e:
+            export_data["bot_status"] = {"error": str(e)}
+
+        return jsonify(export_data)
+
+    except Exception as e:
+        return jsonify({"error": f"Export failed: {str(e)}"}), 500
+
+
 def main():
     """Run Flask server"""
     global bot, bot_thread

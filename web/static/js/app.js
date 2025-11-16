@@ -1063,6 +1063,71 @@ async function loadScreenerConfig() {
     }
 }
 
+// Data Export Function
+async function exportAllData() {
+    const statusDiv = document.getElementById('export-status');
+
+    try {
+        statusDiv.innerHTML = '<p style="color: #ff9800;">⏳ Gathering all system data...</p>';
+
+        const response = await fetch('/api/debug/export-all');
+        const data = await response.json();
+
+        if (data.error) {
+            statusDiv.innerHTML = `<p style="color: #f44336;">✗ Error: ${data.error}</p>`;
+            return;
+        }
+
+        // Create a formatted JSON string with indentation
+        const jsonString = JSON.stringify(data, null, 2);
+
+        // Create a blob from the JSON string
+        const blob = new Blob([jsonString], { type: 'application/json' });
+
+        // Create download link
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+
+        // Generate filename with timestamp
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+        a.download = `cryptobot-export-${timestamp}.json`;
+
+        // Trigger download
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+
+        // Show success message with data summary
+        const tradesCount = data.trade_count || 0;
+        const positionsCount = data.capital_state?.open_positions_count || 0;
+        const currentCapital = data.capital_state?.current_capital || 0;
+
+        statusDiv.innerHTML = `
+            <p style="color: #4caf50;">✓ Export successful!</p>
+            <p style="color: #666; font-size: 0.9em;">
+                <strong>File downloaded:</strong> cryptobot-export-${timestamp}.json<br>
+                <strong>Export includes:</strong><br>
+                • Configuration settings<br>
+                • ${positionsCount} open position(s)<br>
+                • ${tradesCount} trade(s)<br>
+                • Performance metrics<br>
+                • Capital state: $${currentCapital.toFixed(2)}<br>
+                • Screener config & results<br>
+                • Claude AI analysis logs<br>
+                • Recent bot logs<br>
+                <br>
+                You can now share this file for analysis!
+            </p>
+        `;
+
+    } catch (error) {
+        console.error('Error exporting data:', error);
+        statusDiv.innerHTML = `<p style="color: #f44336;">✗ Error: ${error.message}</p>`;
+    }
+}
+
 // System Maintenance Functions
 async function resetConfiguration() {
     const statusDiv = document.getElementById('maintenance-status');

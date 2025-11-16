@@ -330,6 +330,20 @@
         <!-- Debug Tab -->
         <div id="debug-tab" class="tab-content">
             <div class="card">
+                <h2>Data Export</h2>
+                <div class="controls">
+                    <button class="btn btn-success" onclick="exportAllData()">📦 Export All Data</button>
+                </div>
+                <div id="export-status" style="margin-top: 10px;"></div>
+                <p style="margin-top: 10px; color: #666; font-size: 0.9em;">
+                    <strong>Export All Data:</strong> Downloads a comprehensive JSON file containing:
+                    configuration settings, open positions, all trades, performance metrics, capital state,
+                    screener configuration & results, Claude AI analysis logs, and recent bot logs.
+                    Perfect for analysis and troubleshooting.
+                </p>
+            </div>
+
+            <div class="card">
                 <h2>System Maintenance</h2>
                 <div class="controls">
                     <button class="btn btn-warning" onclick="resetConfiguration()">🔄 Reset Configuration</button>
