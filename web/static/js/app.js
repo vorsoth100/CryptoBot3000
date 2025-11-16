@@ -1715,12 +1715,25 @@ async function displayPositionChart(positionIndex) {
         }
 
         // Prepare data
-        const timestamps = data.price_history.map(p => new Date(p.timestamp));
-        const prices = data.price_history.map(p => p.price);
+        let timestamps = data.price_history.map(p => new Date(p.timestamp));
+        let prices = data.price_history.map(p => p.price);
 
         // Parse entry timestamp - handle ISO format
         const entryTime = new Date(data.entry_timestamp);
         const entryPrice = data.entry_price;
+
+        // Get current price from position data
+        const currentPriceFromPosition = position.current_price;
+
+        // Add current price as the most recent data point if it's newer than last history point
+        const lastHistoryTime = timestamps[timestamps.length - 1];
+        const now = new Date();
+
+        if (currentPriceFromPosition && now > lastHistoryTime) {
+            timestamps.push(now);
+            prices.push(currentPriceFromPosition);
+            console.log('Added current price point:', currentPriceFromPosition, 'at', now);
+        }
 
         console.log('Entry timestamp raw:', data.entry_timestamp);
         console.log('Entry time parsed:', entryTime);
