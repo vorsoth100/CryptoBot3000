@@ -583,17 +583,28 @@ function displayClaudeAnalysis(analysis) {
     const container = document.getElementById('claude-analysis-container');
 
     try {
+        console.log('displayClaudeAnalysis called with:', analysis);
+
         // Parse the raw_analysis JSON string
         let parsed = analysis;
         if (analysis.raw_analysis) {
+            console.log('Found raw_analysis, attempting to parse...');
             const jsonMatch = analysis.raw_analysis.match(/```json\n([\s\S]*?)\n```/);
             if (jsonMatch) {
                 parsed = JSON.parse(jsonMatch[1]);
+                console.log('Parsed from raw_analysis:', parsed);
+            } else {
+                console.log('No JSON code block found in raw_analysis');
             }
+        } else {
+            console.log('No raw_analysis field, using analysis directly');
         }
 
         const assessment = parsed.market_assessment || {};
         const warnings = parsed.risk_warnings || [];
+
+        console.log('Assessment:', assessment);
+        console.log('Warnings:', warnings);
 
         let html = '<div style="background: #f5f5f5; padding: 15px; border-radius: 4px; color: #333;">';
 
@@ -1637,13 +1648,13 @@ let marketRegimeChartInterval = null;
 async function loadPositionChart() {
     const positions = await fetch('/api/positions').then(r => r.json());
 
-    if (!positions.success || positions.positions.length === 0) {
+    if (!positions || positions.length === 0) {
         document.getElementById('position-chart-card').style.display = 'none';
         return;
     }
 
     // Show chart for first position
-    const position = positions.positions[0];
+    const position = positions[0];
     const productId = position.product_id;
 
     try {
