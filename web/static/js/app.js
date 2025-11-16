@@ -408,6 +408,8 @@ async function loadConfig() {
         document.getElementById('max_fee_pct').value = config.max_fee_pct * 100;  // Convert decimal to percentage for display
         document.getElementById('claude_analysis_mode').value = config.claude_analysis_mode;
         document.getElementById('claude_confidence_threshold').value = config.claude_confidence_threshold;
+        document.getElementById('coingecko_enabled').checked = config.coingecko_enabled;
+        document.getElementById('news_sentiment_enabled').checked = config.news_sentiment_enabled;
 
     } catch (error) {
         console.error('Error loading config:', error);
@@ -429,7 +431,9 @@ async function saveConfig() {
             coinbase_taker_fee: parseFloat(document.getElementById('coinbase_taker_fee').value) / 100,  // Convert to decimal
             max_fee_pct: parseFloat(document.getElementById('max_fee_pct').value) / 100,  // Convert percentage to decimal for storage
             claude_analysis_mode: document.getElementById('claude_analysis_mode').value,
-            claude_confidence_threshold: parseInt(document.getElementById('claude_confidence_threshold').value)
+            claude_confidence_threshold: parseInt(document.getElementById('claude_confidence_threshold').value),
+            coingecko_enabled: document.getElementById('coingecko_enabled').checked,
+            news_sentiment_enabled: document.getElementById('news_sentiment_enabled').checked
         };
 
         const response = await fetch('/api/config', {

@@ -238,6 +238,20 @@
                         <input type="number" id="claude_confidence_threshold" name="claude_confidence_threshold" min="0" max="100">
                     </div>
 
+                    <h3 style="margin-top: 30px; margin-bottom: 15px; border-bottom: 2px solid #38444d; padding-bottom: 10px;">Data Sources</h3>
+
+                    <div class="form-group">
+                        <label>CoinGecko Integration</label>
+                        <input type="checkbox" id="coingecko_enabled" name="coingecko_enabled">
+                        <span class="help-text">Enable trending coins detection from CoinGecko (free, no API key required)</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label>News Sentiment (Crypto Panic)</label>
+                        <input type="checkbox" id="news_sentiment_enabled" name="news_sentiment_enabled">
+                        <span class="help-text">Enable news sentiment analysis (WARNING: free tier has strict rate limits)</span>
+                    </div>
+
                     <button type="button" class="btn btn-success" onclick="saveConfig()">Save Configuration</button>
                     <button type="button" class="btn btn-secondary" onclick="loadConfig()">Reload</button>
                 </form>
