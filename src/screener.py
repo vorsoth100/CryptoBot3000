@@ -45,6 +45,13 @@ class MarketScreener:
 
         opportunities = []
 
+        # Pre-fetch all news ONCE before looping to prevent multiple API calls
+        if self.news_sentiment and self.config.get("news_sentiment_enabled", False):
+            try:
+                self.news_sentiment._fetch_all_news()
+            except Exception as e:
+                self.logger.warning(f"Failed to pre-fetch news data: {e}")
+
         for product_id in coins:
             try:
                 # Extract symbol (e.g., BTC from BTC-USD)

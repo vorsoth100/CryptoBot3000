@@ -352,7 +352,11 @@ class TradingBot:
         news_sentiment_data = {}
         if self.config.get("news_sentiment_enabled", False):
             try:
-                # Get sentiment for top screener results
+                # Pre-fetch all news ONCE to populate cache before looping
+                # This prevents multiple simultaneous API calls
+                self.news_sentiment._fetch_all_news()
+
+                # Now get sentiment for top screener results (uses cached data)
                 for opp in screener_results[:5]:  # Top 5 opportunities
                     sentiment = self.news_sentiment.get_sentiment(opp["product_id"])
                     if sentiment:
