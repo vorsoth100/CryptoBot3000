@@ -204,6 +204,39 @@ function updateStatusDisplay(data) {
 }
 
 // Load Dashboard
+async function loadManualTradeCoins() {
+    try {
+        const response = await fetch('/api/config');
+        const config = await response.json();
+
+        const selector = document.getElementById('manual_coin');
+        const coinCountSpan = document.getElementById('manual-coin-count');
+
+        if (!config.screener_coins || config.screener_coins.length === 0) {
+            selector.innerHTML = '<option value="">No coins configured</option>';
+            coinCountSpan.textContent = '0';
+            return;
+        }
+
+        // Populate dropdown with all screener coins
+        selector.innerHTML = '<option value="">Select a coin...</option>';
+        config.screener_coins.forEach(coin => {
+            const option = document.createElement('option');
+            option.value = coin;
+            option.textContent = coin;
+            selector.appendChild(option);
+        });
+
+        coinCountSpan.textContent = config.screener_coins.length;
+        console.log(`Loaded ${config.screener_coins.length} coins for manual trading`);
+
+    } catch (error) {
+        console.error('Error loading manual trade coins:', error);
+        const selector = document.getElementById('manual_coin');
+        selector.innerHTML = '<option value="">Error loading coins</option>';
+    }
+}
+
 async function loadDashboard() {
     try {
         // Load balance
@@ -240,6 +273,9 @@ async function loadDashboard() {
 
         // Load position chart if there are open positions
         await loadPositionChart();
+
+        // Load manual trade coins dropdown
+        await loadManualTradeCoins();
 
     } catch (error) {
         console.error('Error loading dashboard:', error);
