@@ -54,6 +54,13 @@ class MarketScreener:
             except Exception as e:
                 self.logger.warning(f"Failed to pre-fetch news data: {e}")
 
+        # Pre-fetch trending coins ONCE before looping (single API call)
+        if self.coingecko and self.config.get("coingecko_enabled", False):
+            try:
+                self.coingecko.get_trending_coins()
+            except Exception as e:
+                self.logger.warning(f"Failed to pre-fetch CoinGecko trending data: {e}")
+
         for product_id in coins:
             try:
                 # Extract symbol (e.g., BTC from BTC-USD)
@@ -108,22 +115,21 @@ class MarketScreener:
                     except Exception as e:
                         self.logger.error(f"Error fetching news sentiment for {product_id}: {e}")
 
-                # Get CoinGecko data and boost score
+                # Get CoinGecko trending boost (lightweight - no per-coin API calls)
                 coingecko_data = None
                 if self.coingecko and self.config.get("coingecko_enabled", False):
                     try:
-                        should_boost, boost_amount, reason = self.coingecko.should_boost_score(product_id)
-                        if should_boost:
+                        # Only check if coin is trending (uses cached trending list, no individual API calls)
+                        if self.coingecko.is_trending(product_id):
+                            boost_amount = self.config.get("coingecko_trending_boost", 5)
                             score += boost_amount
                             self.logger.info(
                                 f"{product_id}: Boosted score by +{boost_amount} for CoinGecko factors "
-                                f"({reason})"
+                                f"(trending on CoinGecko)"
                             )
-
-                        # Get full coin data for opportunity metadata
-                        coingecko_data = self.coingecko.get_coin_data(product_id)
+                            coingecko_data = {"trending": True}
                     except Exception as e:
-                        self.logger.error(f"Error fetching CoinGecko data for {product_id}: {e}")
+                        self.logger.error(f"Error checking CoinGecko trending for {product_id}: {e}")
 
                 if score > 0:
                     opportunity = {
