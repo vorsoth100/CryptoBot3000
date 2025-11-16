@@ -365,8 +365,8 @@ class RiskManager:
             return None
 
         position = self.positions[product_id]
-        maker_fee = self.config.get("coinbase_maker_fee", 0.005)
-        taker_fee = self.config.get("coinbase_taker_fee", 0.02)
+        maker_fee = self.config.get("coinbase_maker_fee", 0.006)
+        taker_fee = self.config.get("coinbase_taker_fee", 0.008)
 
         return calculate_break_even_price(position.entry_price, maker_fee, taker_fee)
 
@@ -391,7 +391,7 @@ class RiskManager:
         gross_pnl = current_value - entry_value
 
         # Estimate exit fee
-        taker_fee = self.config.get("coinbase_taker_fee", 0.02)
+        taker_fee = self.config.get("coinbase_taker_fee", 0.008)
         exit_fee = current_value * taker_fee
 
         total_fees = position.entry_fee + exit_fee
@@ -434,13 +434,28 @@ class RiskManager:
         self.logger.info("Reset daily metrics")
 
     def _load_positions(self):
-        """Load positions from disk"""
+        """Load positions and capital state from disk"""
         try:
             if os.path.exists(self.positions_file):
                 with open(self.positions_file, 'r') as f:
                     data = json.load(f)
 
-                for product_id, pos_data in data.items():
+                # Load metadata (capital state) if it exists
+                if '_metadata' in data:
+                    metadata = data['_metadata']
+                    self.current_capital = metadata.get('current_capital', self.current_capital)
+                    self.daily_pnl = metadata.get('daily_pnl', 0.0)
+                    self.daily_trades = metadata.get('daily_trades', 0)
+                    self.total_drawdown = metadata.get('total_drawdown', 0.0)
+                    self.logger.info(f"Restored capital state: ${self.current_capital:.2f} (Initial: ${self.initial_capital:.2f})")
+                    positions_data = data.get('positions', {})
+                else:
+                    # Legacy format (positions only, no metadata)
+                    self.logger.warning("Loading legacy position format without capital state")
+                    positions_data = data
+
+                # Load positions
+                for product_id, pos_data in positions_data.items():
                     # Recreate Position objects
                     position = Position(
                         product_id=pos_data['product_id'],
@@ -456,11 +471,22 @@ class RiskManager:
             self.logger.error(f"Error loading positions: {e}")
 
     def _save_positions(self):
-        """Save positions to disk"""
+        """Save positions and capital state to disk"""
         try:
-            data = {}
+            data = {
+                '_metadata': {
+                    'current_capital': self.current_capital,
+                    'initial_capital': self.initial_capital,
+                    'daily_pnl': self.daily_pnl,
+                    'daily_trades': self.daily_trades,
+                    'total_drawdown': self.total_drawdown,
+                    'last_updated': datetime.now().isoformat()
+                },
+                'positions': {}
+            }
+
             for product_id, pos in self.positions.items():
-                data[product_id] = {
+                data['positions'][product_id] = {
                     'product_id': pos.product_id,
                     'quantity': pos.quantity,
                     'entry_price': pos.entry_price,
@@ -471,6 +497,6 @@ class RiskManager:
             with open(self.positions_file, 'w') as f:
                 json.dump(data, f, indent=2)
 
-            self.logger.debug(f"Saved {len(self.positions)} positions to {self.positions_file}")
+            self.logger.debug(f"Saved {len(self.positions)} positions and capital state (${self.current_capital:.2f}) to {self.positions_file}")
         except Exception as e:
             self.logger.error(f"Error saving positions: {e}")
