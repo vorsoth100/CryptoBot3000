@@ -53,7 +53,10 @@ function loadTabData(tabName) {
             loadConfig();
             break;
         case 'claude':
-            loadClaudeHistory();
+            loadSavedClaudeAnalysis();
+            break;
+        case 'screener':
+            loadSavedScreenerResults();
             break;
         case 'trades':
             loadAllTrades();
@@ -64,6 +67,51 @@ function loadTabData(tabName) {
         case 'debug':
             // Debug tab loads on demand
             break;
+    }
+}
+
+// Load saved screener results on page load
+function loadSavedScreenerResults() {
+    const saved = localStorage.getItem('latestScreenerResults');
+    if (saved) {
+        try {
+            const data = JSON.parse(saved);
+            const statusDiv = document.getElementById('screener-status');
+            const resultsContainer = document.getElementById('screener-results-container');
+
+            if (data.results && data.results.length > 0) {
+                statusDiv.innerHTML = `<p style="color: #4caf50;">✓ Found ${data.results.length} opportunities</p>`;
+                statusDiv.innerHTML += `<p style="color: #666; font-size: 0.9em;">📅 Last run: ${data.displayTime}</p>`;
+
+                let html = '<table style="width: 100%; border-collapse: collapse;">';
+                html += '<thead><tr style="background: #f5f5f5;">';
+                html += '<th style="padding: 8px; text-align: left; color: #333; font-weight: 600;">Coin</th>';
+                html += '<th style="padding: 8px; text-align: left; color: #333; font-weight: 600;">Signal</th>';
+                html += '<th style="padding: 8px; text-align: right; color: #333; font-weight: 600;">Score</th>';
+                html += '<th style="padding: 8px; text-align: right; color: #333; font-weight: 600;">Confidence</th>';
+                html += '<th style="padding: 8px; text-align: right; color: #333; font-weight: 600;">Price</th>';
+                html += '</tr></thead><tbody>';
+
+                data.results.forEach((opp) => {
+                    const signalColor = opp.signal === 'strong_buy' ? '#4caf50' :
+                                       opp.signal === 'buy' ? '#8bc34a' :
+                                       opp.signal === 'neutral' ? '#ff9800' : '#f44336';
+
+                    html += `<tr style="border-bottom: 1px solid #eee;">`;
+                    html += `<td style="padding: 8px;"><strong>${opp.product_id}</strong></td>`;
+                    html += `<td style="padding: 8px; color: ${signalColor};">${opp.signal.toUpperCase()}</td>`;
+                    html += `<td style="padding: 8px; text-align: right;">${opp.score.toFixed(1)}</td>`;
+                    html += `<td style="padding: 8px; text-align: right;">${opp.confidence.toFixed(0)}%</td>`;
+                    html += `<td style="padding: 8px; text-align: right;">$${opp.price.toFixed(2)}</td>`;
+                    html += `</tr>`;
+                });
+
+                html += '</tbody></table>';
+                resultsContainer.innerHTML = html;
+            }
+        } catch (e) {
+            console.error('Error loading saved screener results:', e);
+        }
     }
 }
 
@@ -249,33 +297,41 @@ function displayRecentTrades(trades) {
 
     let html = '';
     trades.forEach(trade => {
-        const isClosed = trade.net_pnl !== undefined && trade.net_pnl !== 0;
-        const pnlClass = isClosed ? (parseFloat(trade.net_pnl) >= 0 ? 'profit' : 'loss') : '';
-        const tradeValue = trade.quantity * trade.price;
+        // Convert CSV strings to numbers
+        const price = parseFloat(trade.price) || 0;
+        const quantity = parseFloat(trade.quantity) || 0;
+        const feeUsd = parseFloat(trade.fee_usd) || 0;
+        const netPnl = parseFloat(trade.net_pnl) || 0;
+        const pnlPct = parseFloat(trade.pnl_pct) || 0;
+
+        const isClosed = trade.net_pnl !== null && trade.net_pnl !== undefined && trade.net_pnl !== '' && netPnl !== 0;
+        const pnlClass = isClosed ? (netPnl >= 0 ? 'profit' : 'loss') : '';
+        const tradeValue = quantity * price;
 
         html += `<div class="trade-item ${pnlClass}">`;
         html += `<div class="trade-header">`;
         html += `<span><strong>${trade.product_id}</strong> - ${trade.side}</span>`;
 
         if (isClosed) {
-            html += `<span class="${pnlClass}">${formatUSD(trade.net_pnl)} (${parseFloat(trade.pnl_pct).toFixed(2)}%)</span>`;
+            html += `<span class="${pnlClass}">${formatUSD(netPnl)} (${pnlPct.toFixed(2)}%)</span>`;
         } else {
             html += `<span style="color: #2196f3;">OPEN</span>`;
         }
 
         html += `</div>`;
         html += `<div class="trade-details">`;
-        html += `<div><strong>Price:</strong> ${formatUSD(trade.price)}</div>`;
-        html += `<div><strong>Quantity:</strong> ${parseFloat(trade.quantity).toFixed(6)}</div>`;
+        html += `<div><strong>Price:</strong> ${formatUSD(price)}</div>`;
+        html += `<div><strong>Quantity:</strong> ${quantity.toFixed(6)}</div>`;
         html += `<div><strong>Trade Value:</strong> ${formatUSD(tradeValue)}</div>`;
-        html += `<div><strong>Fees:</strong> ${formatUSD(trade.fee_usd)}</div>`;
+        html += `<div><strong>Fees:</strong> ${formatUSD(feeUsd)}</div>`;
 
         if (isClosed) {
-            const totalCost = tradeValue + trade.fee_usd;
+            const holdTimeHours = parseFloat(trade.hold_time_hours) || 0;
+            const totalCost = tradeValue + feeUsd;
             html += `<div><strong>Total Cost:</strong> ${formatUSD(totalCost)}</div>`;
-            html += `<div><strong>Hold Time:</strong> ${trade.hold_time_hours ? trade.hold_time_hours.toFixed(1) + 'h' : 'N/A'}</div>`;
+            html += `<div><strong>Hold Time:</strong> ${holdTimeHours > 0 ? holdTimeHours.toFixed(1) + 'h' : 'N/A'}</div>`;
         } else {
-            const totalCost = tradeValue + trade.fee_usd;
+            const totalCost = tradeValue + feeUsd;
             html += `<div><strong>Total Cost:</strong> ${formatUSD(totalCost)}</div>`;
             html += `<div><strong>Current Value:</strong> <span style="font-style: italic;">See Open Positions</span></div>`;
         }
@@ -472,8 +528,24 @@ async function runClaudeAnalysis() {
         const result = await response.json();
 
         if (result.success) {
-            displayClaudeAnalysis(result.analysis);
-            displayTradeRecommendations(result.analysis);
+            // Add timestamp to analysis
+            const analysisWithTimestamp = {
+                ...result.analysis,
+                timestamp: new Date().toISOString(),
+                displayTime: new Date().toLocaleString()
+            };
+
+            // Save to localStorage
+            localStorage.setItem('latestClaudeAnalysis', JSON.stringify(analysisWithTimestamp));
+
+            // Save to history (keep last 10)
+            let history = JSON.parse(localStorage.getItem('claudeAnalysisHistory') || '[]');
+            history.unshift(analysisWithTimestamp);
+            history = history.slice(0, 10); // Keep only last 10
+            localStorage.setItem('claudeAnalysisHistory', JSON.stringify(history));
+
+            displayClaudeAnalysis(analysisWithTimestamp);
+            displayTradeRecommendations(analysisWithTimestamp);
         } else {
             document.getElementById('claude-analysis-container').innerHTML =
                 `<p class="test-error">Error: ${result.error}</p>`;
@@ -484,6 +556,20 @@ async function runClaudeAnalysis() {
         console.error('Error running analysis:', error);
         document.getElementById('claude-analysis-container').innerHTML =
             `<p class="test-error">Error: ${error.message}</p>`;
+    }
+}
+
+// Load saved Claude analysis on page load
+function loadSavedClaudeAnalysis() {
+    const saved = localStorage.getItem('latestClaudeAnalysis');
+    if (saved) {
+        try {
+            const analysis = JSON.parse(saved);
+            displayClaudeAnalysis(analysis);
+            displayTradeRecommendations(analysis);
+        } catch (e) {
+            console.error('Error loading saved analysis:', e);
+        }
     }
 }
 
@@ -504,6 +590,12 @@ function displayClaudeAnalysis(analysis) {
         const warnings = parsed.risk_warnings || [];
 
         let html = '<div style="background: #f5f5f5; padding: 15px; border-radius: 4px; color: #333;">';
+
+        // Add timestamp if available
+        if (analysis.displayTime) {
+            html += `<p style="color: #666; font-size: 0.9em; margin-bottom: 10px;">📅 Analysis from: <strong>${analysis.displayTime}</strong></p>`;
+        }
+
         html += `<h3 style="color: #1a1a1a;">Market Regime: <span style="color: #2196f3;">${assessment.regime || 'Unknown'}</span></h3>`;
         html += `<p style="color: #333;"><strong>Confidence:</strong> ${assessment.confidence || 0}%</p>`;
         html += `<p style="color: #333;"><strong>Risk Level:</strong> ${assessment.risk_level || 'Unknown'}</p>`;
@@ -1004,7 +1096,16 @@ async function runScreener() {
             return;
         }
 
+        // Save to localStorage with timestamp
+        const screenerWithTimestamp = {
+            results: opportunities,
+            timestamp: new Date().toISOString(),
+            displayTime: new Date().toLocaleString()
+        };
+        localStorage.setItem('latestScreenerResults', JSON.stringify(screenerWithTimestamp));
+
         statusDiv.innerHTML = `<p style="color: #4caf50;">✓ Found ${opportunities.length} opportunities</p>`;
+        statusDiv.innerHTML += `<p style="color: #666; font-size: 0.9em;">📅 Last run: ${screenerWithTimestamp.displayTime}</p>`;
 
         // Display results in a table
         let html = '<table style="width: 100%; border-collapse: collapse;">';

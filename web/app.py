@@ -708,11 +708,19 @@ def export_all_data():
         # 6. Screener Configuration
         try:
             if bot and hasattr(bot, 'screener'):
-                export_data["screener_config"] = {
-                    "mode": bot.screener.mode,
-                    "monitored_coins": bot.screener.get_monitored_coins(),
-                    "coin_count": len(bot.screener.get_monitored_coins())
-                }
+                screener_config = {}
+                if hasattr(bot.screener, 'mode'):
+                    screener_config["mode"] = bot.screener.mode
+                if hasattr(bot.screener, 'get_monitored_coins'):
+                    coins = bot.screener.get_monitored_coins()
+                    screener_config["monitored_coins"] = coins
+                    screener_config["coin_count"] = len(coins)
+                # Fallback to config if screener doesn't have these methods
+                if not screener_config and bot.config:
+                    screener_config["mode"] = bot.config.get("screener_mode", "unknown")
+                    screener_config["monitored_coins"] = bot.config.get("screener_coins", [])
+                    screener_config["coin_count"] = len(bot.config.get("screener_coins", []))
+                export_data["screener_config"] = screener_config
             else:
                 export_data["screener_config"] = {"error": "Bot not running or screener not available"}
         except Exception as e:
@@ -746,15 +754,27 @@ def export_all_data():
 
         # 9. Bot Logs (recent)
         try:
-            bot_log_file = "logs/cryptobot.log"
-            if os.path.exists(bot_log_file):
-                with open(bot_log_file, 'r') as f:
-                    content = f.read()
-                    lines = content.split('\n')
-                    recent_lines = lines[-100:] if len(lines) > 100 else lines
-                    export_data["bot_logs"] = '\n'.join(recent_lines)
+            # Try multiple possible log file locations
+            possible_log_files = [
+                "logs/cryptobot.log",
+                "logs/bot.log",
+                bot.config.get("log_file") if bot and bot.config else None
+            ]
+
+            bot_log_content = None
+            for log_file in possible_log_files:
+                if log_file and os.path.exists(log_file):
+                    with open(log_file, 'r') as f:
+                        content = f.read()
+                        lines = content.split('\n')
+                        recent_lines = lines[-100:] if len(lines) > 100 else lines
+                        bot_log_content = '\n'.join(recent_lines)
+                    break
+
+            if bot_log_content:
+                export_data["bot_logs"] = bot_log_content
             else:
-                export_data["bot_logs"] = "No bot logs available"
+                export_data["bot_logs"] = f"No bot logs found. Checked: {', '.join([f for f in possible_log_files if f])}"
         except Exception as e:
             export_data["bot_logs"] = {"error": str(e)}
 
