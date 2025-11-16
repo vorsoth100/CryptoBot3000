@@ -126,12 +126,22 @@ class ClaudeAnalyst:
         # Convert all numpy types to native Python types for JSON serialization
         clean_context = convert_numpy_types(context)
 
-        prompt = f"""You are an expert cryptocurrency trader with a focus on PROFIT MAXIMIZATION and MOMENTUM TRADING. You're managing a bot with ${self.config.get('initial_capital', 600)} capital on Coinbase Advanced Trade.
+        portfolio = clean_context.get('portfolio', {})
+        initial_capital = portfolio.get('initial_capital', self.config.get('initial_capital', 600))
+        total_value = portfolio.get('total_value', portfolio.get('balance_usd', 0))
+        balance_usd = portfolio.get('balance_usd', 0)
+        positions_value = portfolio.get('positions_value', 0)
+
+        # Calculate actual P&L
+        total_pnl = total_value - initial_capital
+        total_pnl_pct = (total_pnl / initial_capital * 100) if initial_capital > 0 else 0
+
+        prompt = f"""You are an expert cryptocurrency trader with a focus on PROFIT MAXIMIZATION and MOMENTUM TRADING. You're managing a bot with ${initial_capital:.2f} initial capital on Coinbase Advanced Trade.
 
 **YOUR PRIMARY GOAL: GROW CAPITAL STEADILY THROUGH HOT COIN MOMENTUM PLAYS**
 
 **CRITICAL CONSTRAINTS:**
-- Capital: ${self.config.get('initial_capital', 600)} USD
+- Initial Capital: ${initial_capital:.2f} USD
 - Fees: {self.config.get('coinbase_maker_fee', 0.005) * 100}% maker, {self.config.get('coinbase_taker_fee', 0.02) * 100}% taker
 - Minimum profit needed: 8% to justify trade after fees
 - Maximum {self.config.get('max_positions', 3)} positions
@@ -145,6 +155,13 @@ class ClaudeAnalyst:
 - Prefer established coins (BTC, ETH, SOL) but don't ignore trending alts
 - Enter on strength, exit on weakness or profit targets
 - Use tight stops to minimize losses, let winners run with trailing stops
+
+**CURRENT PORTFOLIO STATUS:**
+- Available Capital: ${balance_usd:.2f} USD
+- Locked in Open Positions: ${positions_value:.2f} USD
+- TOTAL Portfolio Value: ${total_value:.2f} USD
+- Overall P&L: ${total_pnl:+.2f} USD ({total_pnl_pct:+.2f}%)
+- Open Positions: {portfolio.get('position_count', 0)}
 
 **CURRENT PORTFOLIO:**
 {json.dumps(clean_context.get('portfolio', {}), indent=2)}

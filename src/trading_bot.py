@@ -311,6 +311,23 @@ class TradingBot:
 
         positions = self.risk_manager.get_all_positions()
 
+        # Calculate total portfolio value (available capital + current position values)
+        positions_value = 0.0
+        for pos in positions:
+            # Get current price for this position
+            try:
+                current_price = self.data_collector.get_current_price(pos["product_id"], use_cache=False)
+                if current_price:
+                    positions_value += pos["quantity"] * current_price
+                else:
+                    # Fallback to entry price if current price unavailable
+                    positions_value += pos["quantity"] * pos["entry_price"]
+            except Exception as e:
+                self.logger.warning(f"Could not get current price for {pos['product_id']}, using entry price")
+                positions_value += pos["quantity"] * pos["entry_price"]
+
+        total_portfolio_value = balance + positions_value
+
         # Get market data
         screener_results = self.screener.screen_coins()
 
@@ -348,7 +365,10 @@ class TradingBot:
             "portfolio": {
                 "balance_usd": balance,
                 "positions": positions,
-                "position_count": len(positions)
+                "position_count": len(positions),
+                "positions_value": positions_value,
+                "total_value": total_portfolio_value,
+                "initial_capital": self.risk_manager.initial_capital
             },
             "market_data": {
                 "timestamp": datetime.now().isoformat(),
