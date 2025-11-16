@@ -257,6 +257,15 @@ class TradingBot:
                 return False
             elif schedule == "twice_daily" and hours_since < 12:
                 return False
+            elif schedule == "six_hourly" and hours_since < 6:
+                return False
+
+        # For six_hourly and twice_daily, run if no previous analysis or enough time passed
+        if schedule in ["six_hourly", "twice_daily"]:
+            if not self.last_analysis_time:
+                return True
+            # Time check already done above, don't run
+            return False
 
         # Check if it's the scheduled time (for daily)
         if schedule == "daily":

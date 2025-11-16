@@ -89,7 +89,7 @@ class ConfigManager:
         # Claude AI Analyst
         "claude_enabled": True,
         "claude_analysis_mode": "semi_autonomous",  # Changed from advisory
-        "claude_analysis_schedule": "twice_daily",  # Changed from daily
+        "claude_analysis_schedule": "six_hourly",  # Run every 6 hours
         "claude_analysis_time_utc": "00:00",
         "claude_confidence_threshold": 80,
         "claude_max_trade_suggestions": 3,
