@@ -301,6 +301,9 @@ class TradingBot:
                 self.logger.warning("No analysis received from Claude")
                 return
 
+            # Save analysis to file for web dashboard
+            self._save_claude_analysis(analysis)
+
             # Display analysis
             formatted = self.claude_analyst.format_analysis_for_display(analysis)
             self.logger.info(f"\n{formatted}")
@@ -464,6 +467,9 @@ class TradingBot:
 
             # Run screener
             opportunities = self.screener.screen_coins()
+
+            # Save screener results to file for web dashboard
+            self._save_screener_results(opportunities)
 
             if not opportunities:
                 self.logger.info("No opportunities found")
@@ -642,6 +648,53 @@ class TradingBot:
             "performance": metrics,
             "last_analysis": self.last_analysis_time.isoformat() if self.last_analysis_time else None
         }
+
+    def _save_screener_results(self, opportunities: List[Dict]):
+        """Save screener results to file for web dashboard"""
+        try:
+            import json
+            import os
+            from src.claude_analyst import convert_numpy_types
+
+            # Convert numpy types for JSON serialization
+            clean_opportunities = convert_numpy_types(opportunities)
+
+            result = {
+                "timestamp": datetime.now().isoformat(),
+                "opportunities": clean_opportunities,
+                "count": len(clean_opportunities)
+            }
+
+            # Save to data directory
+            os.makedirs("data", exist_ok=True)
+            with open("data/latest_screener.json", "w") as f:
+                json.dump(result, f, indent=2)
+
+            self.logger.debug(f"Saved {len(opportunities)} screener results to data/latest_screener.json")
+
+        except Exception as e:
+            self.logger.error(f"Error saving screener results: {e}")
+
+    def _save_claude_analysis(self, analysis: Dict):
+        """Save Claude analysis to file for web dashboard"""
+        try:
+            import json
+            import os
+
+            result = {
+                "timestamp": datetime.now().isoformat(),
+                "analysis": analysis
+            }
+
+            # Save to data directory
+            os.makedirs("data", exist_ok=True)
+            with open("data/latest_claude_analysis.json", "w") as f:
+                json.dump(result, f, indent=2)
+
+            self.logger.debug("Saved Claude analysis to data/latest_claude_analysis.json")
+
+        except Exception as e:
+            self.logger.error(f"Error saving Claude analysis: {e}")
 
 
 def main():

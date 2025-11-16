@@ -234,15 +234,30 @@ def get_balance():
 
 @app.route('/api/screener')
 def run_screener():
-    """Run market screener"""
+    """Run market screener or get latest automated results"""
     if not bot:
         return jsonify([])
 
     try:
         import logging
+        import json
+        import os
         from src.claude_analyst import convert_numpy_types
         logger = logging.getLogger("CryptoBot.Web")
 
+        # Check if we have recent automated results (within last hour)
+        automated_file = "data/latest_screener.json"
+        if os.path.exists(automated_file):
+            from datetime import datetime, timedelta
+            file_time = datetime.fromtimestamp(os.path.getmtime(automated_file))
+            if datetime.now() - file_time < timedelta(hours=1):
+                # Return automated results
+                with open(automated_file, 'r') as f:
+                    data = json.load(f)
+                logger.info(f"Returning automated screener results from {data['timestamp']}")
+                return jsonify(data['opportunities'])
+
+        # Otherwise run manual screener
         logger.info("Running screener via API...")
         opportunities = bot.screener.screen_coins()
         logger.info(f"Screener found {len(opportunities)} opportunities")
@@ -266,9 +281,32 @@ def run_screener():
         return jsonify({"error": str(e), "details": "Check bot logs for full traceback"}), 500
 
 
+@app.route('/api/claude/latest')
+def get_latest_claude_analysis():
+    """Get latest automated Claude analysis"""
+    try:
+        import json
+        import os
+        from datetime import datetime, timedelta
+
+        automated_file = "data/latest_claude_analysis.json"
+        if os.path.exists(automated_file):
+            with open(automated_file, 'r') as f:
+                data = json.load(f)
+            return jsonify({"success": True, "analysis": data['analysis'], "timestamp": data['timestamp']})
+        else:
+            return jsonify({"success": False, "error": "No automated analysis available yet"}), 404
+
+    except Exception as e:
+        import logging
+        logger = logging.getLogger("CryptoBot.Web")
+        logger.error(f"Error loading latest Claude analysis: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @app.route('/api/claude/analyze', methods=['POST'])
 def run_claude_analysis():
-    """Trigger Claude AI analysis"""
+    """Trigger manual Claude AI analysis"""
     if not bot:
         return jsonify({"success": False, "error": "Bot not initialized"}), 400
 

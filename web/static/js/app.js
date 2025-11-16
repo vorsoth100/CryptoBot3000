@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', function() {
     loadConfig();
     loadDashboard();  // Load dashboard data immediately on page load
     loadScreenerConfig();  // Load screener configuration on page load
+    loadLatestClaudeAnalysis();  // Load latest automated Claude analysis
 
     // Setup auto-refresh
     startAutoRefresh();
@@ -610,6 +611,37 @@ async function runClaudeAnalysis() {
 }
 
 // Load saved Claude analysis on page load
+// Load latest automated Claude analysis from server
+async function loadLatestClaudeAnalysis() {
+    try {
+        const response = await fetch('/api/claude/latest');
+        const result = await response.json();
+
+        if (result.success && result.analysis) {
+            const analysisWithTimestamp = {
+                ...result.analysis,
+                timestamp: result.timestamp,
+                displayTime: new Date(result.timestamp).toLocaleString(),
+                automated: true
+            };
+
+            // Save to localStorage
+            localStorage.setItem('latestClaudeAnalysis', JSON.stringify(analysisWithTimestamp));
+
+            displayClaudeAnalysis(analysisWithTimestamp);
+            displayTradeRecommendations(analysisWithTimestamp);
+            console.log('Loaded automated Claude analysis from', result.timestamp);
+        } else {
+            // Fall back to localStorage if no automated analysis available
+            loadSavedClaudeAnalysis();
+        }
+    } catch (error) {
+        console.error('Error loading latest Claude analysis:', error);
+        // Fall back to localStorage
+        loadSavedClaudeAnalysis();
+    }
+}
+
 function loadSavedClaudeAnalysis() {
     const saved = localStorage.getItem('latestClaudeAnalysis');
     if (saved) {
