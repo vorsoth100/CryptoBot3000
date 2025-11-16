@@ -830,9 +830,15 @@ function displayAllTradesTable(trades, container) {
     let html = '<div style="max-height: 600px; overflow-y: auto;">';
 
     trades.forEach((trade, index) => {
+        // Convert all CSV string values to numbers
+        const price = parseFloat(trade.price) || 0;
+        const quantity = parseFloat(trade.quantity) || 0;
+        const feeUsd = parseFloat(trade.fee_usd) || 0;
+        const holdTimeHours = parseFloat(trade.hold_time_hours) || 0;
+
         const isBuy = trade.side === 'BUY';
-        const isClosed = trade.net_pnl !== null && trade.net_pnl !== undefined;
-        const tradeValue = trade.quantity * trade.price;
+        const isClosed = trade.net_pnl !== null && trade.net_pnl !== undefined && trade.net_pnl !== '';
+        const tradeValue = quantity * price;
 
         html += `<div class="trade-card" style="margin-bottom: 15px; padding: 15px; border: 1px solid #ddd; border-radius: 4px;">`;
         html += `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">`;
@@ -841,11 +847,12 @@ function displayAllTradesTable(trades, container) {
         html += `<span class="trade-side ${isBuy ? 'buy' : 'sell'}" style="padding: 4px 8px; border-radius: 4px; font-weight: bold; ${isBuy ? 'background: #e8f5e9; color: #2e7d32;' : 'background: #ffebee; color: #c62828;'}">${trade.side}</span>`;
 
         if (isClosed) {
-            const pnlClass = trade.net_pnl >= 0 ? 'positive' : 'negative';
-            const pnlColor = trade.net_pnl >= 0 ? '#4caf50' : '#f44336';
-            const pnlPct = (trade.pnl_pct !== null && trade.pnl_pct !== undefined) ? trade.pnl_pct : 0;
+            const netPnl = parseFloat(trade.net_pnl) || 0;
+            const pnlClass = netPnl >= 0 ? 'positive' : 'negative';
+            const pnlColor = netPnl >= 0 ? '#4caf50' : '#f44336';
+            const pnlPct = parseFloat(trade.pnl_pct) || 0;
             html += `<span style="padding: 4px 8px; border-radius: 4px; font-weight: bold; color: white; background: ${pnlColor};">`;
-            html += `${trade.net_pnl >= 0 ? '+' : ''}${formatUSD(trade.net_pnl)} (${pnlPct >= 0 ? '+' : ''}${pnlPct.toFixed(2)}%)`;
+            html += `${netPnl >= 0 ? '+' : ''}${formatUSD(netPnl)} (${pnlPct >= 0 ? '+' : ''}${pnlPct.toFixed(2)}%)`;
             html += `</span>`;
         } else {
             html += `<span style="padding: 4px 8px; border-radius: 4px; background: #e0e0e0; color: #666;">OPEN</span>`;
@@ -856,17 +863,17 @@ function displayAllTradesTable(trades, container) {
         html += `</div>`;
 
         html += `<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; font-size: 0.95em;">`;
-        html += `<div><strong>Price:</strong> ${formatUSD(trade.price || 0)}</div>`;
-        html += `<div><strong>Quantity:</strong> ${(trade.quantity || 0).toFixed(6)}</div>`;
+        html += `<div><strong>Price:</strong> ${formatUSD(price)}</div>`;
+        html += `<div><strong>Quantity:</strong> ${quantity.toFixed(6)}</div>`;
         html += `<div><strong>Trade Value:</strong> ${formatUSD(tradeValue)}</div>`;
-        html += `<div><strong>Fees:</strong> ${formatUSD(trade.fee_usd || 0)}</div>`;
+        html += `<div><strong>Fees:</strong> ${formatUSD(feeUsd)}</div>`;
 
         if (isClosed) {
-            const totalCost = tradeValue + (trade.fee_usd || 0);
+            const totalCost = tradeValue + feeUsd;
             html += `<div><strong>Total Cost:</strong> ${formatUSD(totalCost)}</div>`;
-            html += `<div><strong>Hold Time:</strong> ${trade.hold_time_hours ? trade.hold_time_hours.toFixed(1) + 'h' : 'N/A'}</div>`;
+            html += `<div><strong>Hold Time:</strong> ${holdTimeHours > 0 ? holdTimeHours.toFixed(1) + 'h' : 'N/A'}</div>`;
         } else {
-            const totalCost = tradeValue + (trade.fee_usd || 0);
+            const totalCost = tradeValue + feeUsd;
             html += `<div><strong>Total Cost:</strong> ${formatUSD(totalCost)}</div>`;
         }
 
