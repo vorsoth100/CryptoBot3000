@@ -1428,6 +1428,58 @@ async function resetConfiguration() {
     }
 }
 
+async function resetConfiguration() {
+    const statusDiv = document.getElementById('maintenance-status');
+
+    // Confirmation dialog
+    const confirmed = confirm(
+        '🔄 RESET CONFIGURATION\n\n' +
+        'This will:\n' +
+        '• Backup current config\n' +
+        '• Reset to default settings (27 coins, semi-autonomous mode)\n' +
+        '• Reload screener with new coin list\n\n' +
+        'Your positions and trades will NOT be affected.\n\n' +
+        'Continue?'
+    );
+
+    if (!confirmed) {
+        statusDiv.innerHTML = '<p style="color: #666;">Reset cancelled</p>';
+        return;
+    }
+
+    try {
+        statusDiv.innerHTML = '<p style="color: #ff9800;">⏳ Resetting configuration...</p>';
+
+        const response = await fetch('/api/debug/reset-config', {
+            method: 'POST'
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            statusDiv.innerHTML = `
+                <p style="color: #4caf50;">✓ ${result.message}</p>
+                <p style="color: #2196f3;">Coin count: ${result.coin_count}</p>
+                <p style="color: #666; font-size: 0.9em;">
+                    First 10 coins: ${result.coins.join(', ')}<br>
+                    ${result.backup_file ? 'Backup: ' + result.backup_file : ''}
+                </p>
+            `;
+
+            // Reload the page after 2 seconds to refresh UI with new config
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+        } else {
+            statusDiv.innerHTML = `<p style="color: #f44336;">✗ Error: ${result.error}</p>`;
+        }
+
+    } catch (error) {
+        console.error('Error resetting config:', error);
+        statusDiv.innerHTML = `<p style="color: #f44336;">✗ Error: ${error.message}</p>`;
+    }
+}
+
 async function clearCache() {
     const statusDiv = document.getElementById('maintenance-status');
 

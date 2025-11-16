@@ -575,6 +575,45 @@ def reset_account():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@app.route('/api/debug/reset-config', methods=['POST'])
+def reset_configuration():
+    """Reset configuration to defaults - backs up current config first"""
+    try:
+        import shutil
+        from datetime import datetime
+
+        config_file = "data/config.json"
+        backup_file = f"data/config.backup.{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+
+        # Backup existing config if it exists
+        if os.path.exists(config_file):
+            shutil.copy2(config_file, backup_file)
+
+        # Reset bot config to defaults
+        if bot:
+            bot.config_manager.reset_to_defaults()
+            bot.config_manager.save()
+            bot.config = bot.config_manager.get_all()
+
+            # Reinitialize components that depend on config
+            bot.screener.config = bot.config
+
+            return jsonify({
+                "success": True,
+                "message": "Configuration reset to defaults! Backup saved.",
+                "backup_file": backup_file if os.path.exists(config_file) else None,
+                "coin_count": len(bot.config.get("screener_coins", [])),
+                "coins": bot.config.get("screener_coins", [])[:10]  # Show first 10
+            })
+        else:
+            return jsonify({"success": False, "error": "Bot not initialized"}), 400
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @app.route('/api/logs/bot')
 def get_bot_logs():
     """Get bot logs (last 2 days)"""
