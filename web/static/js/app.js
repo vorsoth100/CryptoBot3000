@@ -238,6 +238,9 @@ async function loadDashboard() {
         const trades = await tradesResponse.json();
         displayRecentTrades(trades.slice(-10).reverse());
 
+        // Load position chart if there are open positions
+        await loadPositionChart();
+
     } catch (error) {
         console.error('Error loading dashboard:', error);
     }
@@ -546,6 +549,9 @@ async function runClaudeAnalysis() {
 
             displayClaudeAnalysis(analysisWithTimestamp);
             displayTradeRecommendations(analysisWithTimestamp);
+
+            // Refresh the market regime chart with new data
+            loadMarketRegimeChart();
         } else {
             document.getElementById('claude-analysis-container').innerHTML =
                 `<p class="test-error">Error: ${result.error}</p>`;
@@ -1268,6 +1274,9 @@ async function runScreener() {
 
         html += '</tbody></table>';
         resultsContainer.innerHTML = html;
+
+        // Load the screener chart after results are displayed
+        await loadScreenerChart();
 
     } catch (error) {
         console.error('Error running screener:', error);
