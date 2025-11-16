@@ -1609,3 +1609,491 @@ function formatUSD(value) {
         currency: 'USD'
     }).format(value || 0);
 }
+
+// ========================================
+// CHART.JS GRAPHING FUNCTIONALITY
+// ========================================
+
+// Chart instances (global)
+let positionChart = null;
+let screenerChart = null;
+let marketRegimeChart = null;
+
+// Auto-refresh intervals
+let positionChartInterval = null;
+let screenerChartInterval = null;
+let marketRegimeChartInterval = null;
+
+// Position Price Chart (7 days with entry marker)
+async function loadPositionChart() {
+    const positions = await fetch('/api/positions').then(r => r.json());
+
+    if (!positions.success || positions.positions.length === 0) {
+        document.getElementById('position-chart-card').style.display = 'none';
+        return;
+    }
+
+    // Show chart for first position
+    const position = positions.positions[0];
+    const productId = position.product_id;
+
+    try {
+        const response = await fetch(`/api/charts/position-history/${productId}`);
+        const data = await response.json();
+
+        if (!data.success) {
+            console.error('Error loading position chart:', data.error);
+            return;
+        }
+
+        document.getElementById('position-chart-card').style.display = 'block';
+
+        const ctx = document.getElementById('position-chart').getContext('2d');
+
+        // Destroy existing chart
+        if (positionChart) {
+            positionChart.destroy();
+        }
+
+        // Prepare data
+        const timestamps = data.price_history.map(p => new Date(p.timestamp));
+        const prices = data.price_history.map(p => p.price);
+        const entryTime = new Date(data.entry_timestamp);
+        const entryPrice = data.entry_price;
+
+        // Find current price
+        const currentPrice = prices[prices.length - 1];
+        const pnlPercent = ((currentPrice - entryPrice) / entryPrice * 100).toFixed(2);
+        const color = pnlPercent >= 0 ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)';
+
+        positionChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: timestamps,
+                datasets: [{
+                    label: `${productId} Price`,
+                    data: prices,
+                    borderColor: color,
+                    backgroundColor: color + '20',
+                    fill: true,
+                    tension: 0.4
+                }, {
+                    label: 'Entry Price',
+                    data: Array(prices.length).fill(entryPrice),
+                    borderColor: 'rgb(156, 163, 175)',
+                    borderDash: [5, 5],
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    fill: false
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: `${productId} - Entry: $${entryPrice.toFixed(2)} | Current: $${currentPrice.toFixed(2)} (${pnlPercent >= 0 ? '+' : ''}${pnlPercent}%)`
+                    },
+                    legend: {
+                        display: true
+                    },
+                    annotation: {
+                        annotations: {
+                            entryLine: {
+                                type: 'line',
+                                xMin: entryTime,
+                                xMax: entryTime,
+                                borderColor: 'rgb(59, 130, 246)',
+                                borderWidth: 2,
+                                label: {
+                                    content: 'Position Opened',
+                                    enabled: true,
+                                    position: 'start'
+                                }
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            unit: 'hour',
+                            displayFormats: {
+                                hour: 'MMM d, ha'
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Time'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Price (USD)'
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return '$' + value.toFixed(2);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+    } catch (error) {
+        console.error('Error loading position chart:', error);
+    }
+}
+
+async function refreshPositionChart() {
+    await loadPositionChart();
+}
+
+// Screener Momentum Chart (Top 10)
+async function loadScreenerChart() {
+    try {
+        const response = await fetch('/api/charts/screener-momentum');
+        const data = await response.json();
+
+        if (!data.success || data.coins.length === 0) {
+            document.getElementById('screener-chart-card').style.display = 'none';
+            return;
+        }
+
+        document.getElementById('screener-chart-card').style.display = 'block';
+
+        const ctx = document.getElementById('screener-chart').getContext('2d');
+
+        // Destroy existing chart
+        if (screenerChart) {
+            screenerChart.destroy();
+        }
+
+        // Prepare datasets - one line per coin
+        const datasets = data.coins.map((coin, index) => {
+            const hue = (index * 360 / data.coins.length);
+            const color = `hsl(${hue}, 70%, 50%)`;
+
+            return {
+                label: `${coin.product_id} (${coin.signal})`,
+                data: coin.price_history.map(p => ({
+                    x: new Date(p.timestamp),
+                    y: p.price
+                })),
+                borderColor: color,
+                backgroundColor: color + '40',
+                tension: 0.4,
+                pointRadius: 0,
+                borderWidth: 2
+            };
+        });
+
+        screenerChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Top 10 Screener Opportunities - 24h Price Movement'
+                    },
+                    legend: {
+                        display: true,
+                        position: 'right'
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false
+                    }
+                },
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            unit: 'hour',
+                            displayFormats: {
+                                hour: 'ha'
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Time (Last 24h)'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Price (USD)'
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return '$' + value.toFixed(2);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+    } catch (error) {
+        console.error('Error loading screener chart:', error);
+    }
+}
+
+async function refreshScreenerChart() {
+    await loadScreenerChart();
+}
+
+// Market Regime Chart (Claude Analysis History)
+function loadMarketRegimeChart() {
+    const history = JSON.parse(localStorage.getItem('claudeAnalysisHistory') || '[]');
+
+    if (history.length === 0) {
+        return;
+    }
+
+    const ctx = document.getElementById('market-regime-chart').getContext('2d');
+
+    // Destroy existing chart
+    if (marketRegimeChart) {
+        marketRegimeChart.destroy();
+    }
+
+    // Prepare data
+    const timestamps = history.map(a => new Date(a.timestamp)).reverse();
+
+    // Extract metrics
+    const confidence = history.map(a => {
+        try {
+            let parsed = a;
+            if (a.raw_analysis) {
+                const jsonMatch = a.raw_analysis.match(/```json\n([\s\S]*?)\n```/);
+                if (jsonMatch) {
+                    parsed = JSON.parse(jsonMatch[1]);
+                }
+            }
+            return parsed.market_assessment?.confidence || 0;
+        } catch (e) {
+            return 0;
+        }
+    }).reverse();
+
+    const regime = history.map(a => {
+        try {
+            let parsed = a;
+            if (a.raw_analysis) {
+                const jsonMatch = a.raw_analysis.match(/```json\n([\s\S]*?)\n```/);
+                if (jsonMatch) {
+                    parsed = JSON.parse(jsonMatch[1]);
+                }
+            }
+            const r = parsed.market_assessment?.regime || 'unknown';
+            // Convert to numeric: bull=100, sideways=50, bear=0
+            if (r === 'bull') return 100;
+            if (r === 'sideways') return 50;
+            if (r === 'bear') return 0;
+            return 50;
+        } catch (e) {
+            return 50;
+        }
+    }).reverse();
+
+    const risk = history.map(a => {
+        try {
+            let parsed = a;
+            if (a.raw_analysis) {
+                const jsonMatch = a.raw_analysis.match(/```json\n([\s\S]*?)\n```/);
+                if (jsonMatch) {
+                    parsed = JSON.parse(jsonMatch[1]);
+                }
+            }
+            const r = parsed.market_assessment?.risk_level || 'medium';
+            // Convert to numeric: high=100, medium=50, low=0
+            if (r === 'high') return 100;
+            if (r === 'medium') return 50;
+            if (r === 'low') return 0;
+            return 50;
+        } catch (e) {
+            return 50;
+        }
+    }).reverse();
+
+    // Get Fear & Greed from context (if available)
+    const fearGreed = history.map(a => {
+        try {
+            // This would need to be stored in the analysis
+            // For now, use a placeholder
+            return 50;
+        } catch (e) {
+            return 50;
+        }
+    }).reverse();
+
+    // Build datasets
+    const datasets = [];
+
+    if (document.getElementById('toggle-regime').checked) {
+        datasets.push({
+            label: 'Market Regime',
+            data: regime,
+            borderColor: 'rgb(59, 130, 246)',
+            backgroundColor: 'rgb(59, 130, 246, 0.1)',
+            yAxisID: 'y',
+            tension: 0.4
+        });
+    }
+
+    if (document.getElementById('toggle-confidence').checked) {
+        datasets.push({
+            label: 'Confidence %',
+            data: confidence,
+            borderColor: 'rgb(34, 197, 94)',
+            backgroundColor: 'rgb(34, 197, 94, 0.1)',
+            yAxisID: 'y',
+            tension: 0.4
+        });
+    }
+
+    if (document.getElementById('toggle-risk').checked) {
+        datasets.push({
+            label: 'Risk Level',
+            data: risk,
+            borderColor: 'rgb(239, 68, 68)',
+            backgroundColor: 'rgb(239, 68, 68, 0.1)',
+            yAxisID: 'y',
+            tension: 0.4
+        });
+    }
+
+    if (document.getElementById('toggle-feargreed').checked) {
+        datasets.push({
+            label: 'Fear & Greed Index',
+            data: fearGreed,
+            borderColor: 'rgb(168, 85, 247)',
+            backgroundColor: 'rgb(168, 85, 247, 0.1)',
+            yAxisID: 'y',
+            tension: 0.4
+        });
+    }
+
+    marketRegimeChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: timestamps,
+            datasets: datasets
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Market Analysis Trends Over Time'
+                },
+                legend: {
+                    display: true
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            if (context.dataset.label === 'Market Regime') {
+                                if (context.parsed.y === 100) return label + 'Bull';
+                                if (context.parsed.y === 50) return label + 'Sideways';
+                                if (context.parsed.y === 0) return label + 'Bear';
+                            } else if (context.dataset.label === 'Risk Level') {
+                                if (context.parsed.y === 100) return label + 'High';
+                                if (context.parsed.y === 50) return label + 'Medium';
+                                if (context.parsed.y === 0) return label + 'Low';
+                            } else {
+                                return label + context.parsed.y;
+                            }
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    type: 'time',
+                    time: {
+                        unit: 'hour',
+                        displayFormats: {
+                            hour: 'MMM d, ha'
+                        }
+                    },
+                    title: {
+                        display: true,
+                        text: 'Time'
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    title: {
+                        display: true,
+                        text: 'Value / Score'
+                    }
+                }
+            }
+        }
+    });
+}
+
+function updateMarketRegimeChart() {
+    loadMarketRegimeChart();
+}
+
+async function refreshMarketRegimeChart() {
+    // Reload from localStorage
+    loadMarketRegimeChart();
+}
+
+// Auto-refresh setup (10 minutes)
+function startChartAutoRefresh() {
+    // Clear any existing intervals
+    stopChartAutoRefresh();
+
+    // Refresh every 10 minutes (600000 ms)
+    positionChartInterval = setInterval(refreshPositionChart, 600000);
+    screenerChartInterval = setInterval(refreshScreenerChart, 600000);
+    marketRegimeChartInterval = setInterval(refreshMarketRegimeChart, 600000);
+}
+
+function stopChartAutoRefresh() {
+    if (positionChartInterval) clearInterval(positionChartInterval);
+    if (screenerChartInterval) clearInterval(screenerChartInterval);
+    if (marketRegimeChartInterval) clearInterval(marketRegimeChartInterval);
+}
+
+// Load charts when tabs are activated
+function loadChartForTab(tabName) {
+    if (tabName === 'dashboard') {
+        loadPositionChart();
+    } else if (tabName === 'screener') {
+        loadScreenerChart();
+    } else if (tabName === 'claude') {
+        loadMarketRegimeChart();
+    }
+}
+
+// Start auto-refresh on page load
+document.addEventListener('DOMContentLoaded', function() {
+    startChartAutoRefresh();
+
+    // Load initial charts
+    loadPositionChart();
+    loadMarketRegimeChart();
+});

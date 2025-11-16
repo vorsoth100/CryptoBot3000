@@ -342,6 +342,49 @@ class DataCollector:
 
         return None
 
+    def get_historical_prices(self, product_id: str, start_time: datetime, end_time: datetime) -> List[Dict]:
+        """
+        Get historical price data for charting
+
+        Args:
+            product_id: Product ID (e.g., BTC-USD)
+            start_time: Start datetime
+            end_time: End datetime
+
+        Returns:
+            List of {timestamp, price} dictionaries
+        """
+        try:
+            # Calculate time range
+            time_diff = end_time - start_time
+
+            # Choose granularity based on time range
+            if time_diff.days > 3:
+                granularity = "ONE_HOUR"
+            else:
+                granularity = "FIFTEEN_MINUTE"
+
+            # Get candles
+            df = self.get_historical_candles(product_id, granularity=granularity, days=time_diff.days + 1)
+
+            if df is None or df.empty:
+                self.logger.warning(f"No historical data available for {product_id}")
+                return []
+
+            # Convert to list of {timestamp, price} for charting
+            price_history = []
+            for idx, row in df.iterrows():
+                price_history.append({
+                    "timestamp": int(row['time'].timestamp() * 1000) if hasattr(row['time'], 'timestamp') else int(idx.timestamp() * 1000),
+                    "price": float(row['close'])
+                })
+
+            return price_history
+
+        except Exception as e:
+            self.logger.error(f"Error getting historical prices for {product_id}: {e}")
+            return []
+
     def clear_cache(self):
         """Clear all cached data"""
         self.cache.clear()

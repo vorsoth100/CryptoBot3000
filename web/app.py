@@ -825,5 +825,115 @@ def main():
     socketio.run(app, host='0.0.0.0', port=8779, debug=False, allow_unsafe_werkzeug=True)
 
 
+@app.route('/api/charts/position-history/<product_id>', methods=['GET'])
+def get_position_history(product_id):
+    """Get 7-day price history for an open position"""
+    if not bot:
+        return jsonify({"success": False, "error": "Bot not initialized"}), 400
+
+    try:
+        from datetime import datetime, timedelta
+
+        # Get position info
+        positions = bot.risk_manager.get_all_positions()
+        position = next((p for p in positions if p['product_id'] == product_id), None)
+
+        if not position:
+            return jsonify({"success": False, "error": "Position not found"}), 404
+
+        # Get 7 days of price data (hourly)
+        end_time = datetime.now()
+        start_time = end_time - timedelta(days=7)
+
+        # Use Coinbase data collector to get historical prices
+        price_history = bot.data_collector.get_historical_prices(product_id, start_time, end_time)
+
+        # Format response
+        response_data = {
+            "success": True,
+            "product_id": product_id,
+            "entry_price": position['entry_price'],
+            "entry_timestamp": position['timestamp'],
+            "current_quantity": position['quantity'],
+            "price_history": price_history
+        }
+
+        return jsonify(response_data)
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/charts/screener-momentum', methods=['GET'])
+def get_screener_momentum():
+    """Get momentum data for top 10 screener results"""
+    if not bot:
+        return jsonify({"success": False, "error": "Bot not initialized"}), 400
+
+    try:
+        from datetime import datetime, timedelta
+
+        # Get latest screener results from localStorage (frontend will send this)
+        # For now, run screener to get current top 10
+        screener_results = bot.screener.screen_coins()
+
+        # Get top 10 by score
+        top_10 = sorted(screener_results, key=lambda x: x.get('score', 0), reverse=True)[:10]
+
+        # Get 24h price history for each
+        end_time = datetime.now()
+        start_time = end_time - timedelta(hours=24)
+
+        momentum_data = []
+        for result in top_10:
+            product_id = result['product_id']
+            try:
+                price_history = bot.data_collector.get_historical_prices(product_id, start_time, end_time)
+                momentum_data.append({
+                    "product_id": product_id,
+                    "signal": result.get('signal', 'UNKNOWN'),
+                    "score": result.get('score', 0),
+                    "price_change_24h": result.get('price_change_24h', 0),
+                    "price_history": price_history
+                })
+            except Exception as e:
+                logging.error(f"Error getting price history for {product_id}: {e}")
+                continue
+
+        return jsonify({
+            "success": True,
+            "coins": momentum_data,
+            "timestamp": datetime.now().isoformat()
+        })
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/charts/market-regime', methods=['GET'])
+def get_market_regime_history():
+    """Get market regime analysis history from Claude"""
+    try:
+        # Read from localStorage (will be sent from frontend)
+        # Return the history in chart-friendly format
+        history = []
+
+        # Try to read from Claude analysis log
+        log_file = "logs/claude_analysis.log"
+        if os.path.exists(log_file):
+            # Parse last 10 analyses from log
+            # This is a simplified version - frontend will use localStorage
+            pass
+
+        return jsonify({
+            "success": True,
+            "message": "Use localStorage claudeAnalysisHistory on frontend",
+            "history": history
+        })
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 if __name__ == '__main__':
     main()

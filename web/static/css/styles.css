@@ -387,3 +387,9 @@ header h1 {
     font-size: 0.9em;
     color: #8899a6;
 }
+
+/* Small button for chart refresh */
+.btn-sm {
+    padding: 5px 12px;
+    font-size: 0.85em;
+}

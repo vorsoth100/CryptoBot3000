@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CryptoBot Dashboard</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -79,6 +81,15 @@
                 </div>
             </div>
 
+            <!-- Position Price Chart -->
+            <div class="card" id="position-chart-card" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h2>Position Price History (7 Days)</h2>
+                    <button class="btn btn-secondary btn-sm" onclick="refreshPositionChart()">🔄 Refresh</button>
+                </div>
+                <canvas id="position-chart" style="max-height: 400px;"></canvas>
+            </div>
+
             <!-- Recent Trades -->
             <div class="card">
                 <h2>Recent Trades (Last 10)</h2>
@@ -115,6 +126,15 @@
                 <div id="screener-results-container">
                     <p class="no-data">Click "Run Screener" to find opportunities</p>
                 </div>
+            </div>
+
+            <!-- Screener Momentum Chart -->
+            <div class="card" id="screener-chart-card" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h2>Top 10 Opportunities - Price & Momentum</h2>
+                    <button class="btn btn-secondary btn-sm" onclick="refreshScreenerChart()">🔄 Refresh</button>
+                </div>
+                <canvas id="screener-chart" style="max-height: 400px;"></canvas>
             </div>
 
             <div class="card">
@@ -234,6 +254,33 @@
                 <div id="claude-recommendations-container">
                     <p class="no-data">No pending recommendations. Run analysis to get trade suggestions.</p>
                 </div>
+            </div>
+
+            <!-- Market Regime Chart -->
+            <div class="card" id="market-regime-chart-card">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h2>📈 Market Analysis Trends</h2>
+                    <button class="btn btn-secondary btn-sm" onclick="refreshMarketRegimeChart()">🔄 Refresh</button>
+                </div>
+                <div style="margin: 10px 0; display: flex; gap: 10px; flex-wrap: wrap;">
+                    <label style="display: flex; align-items: center; gap: 5px;">
+                        <input type="checkbox" id="toggle-regime" checked onchange="updateMarketRegimeChart()">
+                        <span>Market Regime</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 5px;">
+                        <input type="checkbox" id="toggle-confidence" checked onchange="updateMarketRegimeChart()">
+                        <span>Confidence %</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 5px;">
+                        <input type="checkbox" id="toggle-risk" checked onchange="updateMarketRegimeChart()">
+                        <span>Risk Level</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 5px;">
+                        <input type="checkbox" id="toggle-feargreed" checked onchange="updateMarketRegimeChart()">
+                        <span>Fear & Greed</span>
+                    </label>
+                </div>
+                <canvas id="market-regime-chart" style="max-height: 400px;"></canvas>
             </div>
 
             <div class="card">
