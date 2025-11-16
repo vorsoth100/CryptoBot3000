@@ -1644,7 +1644,11 @@ let positionChartInterval = null;
 let screenerChartInterval = null;
 let marketRegimeChartInterval = null;
 
-// Position Price Charts (7 days with entry marker) - Creates one chart per position
+// Store positions globally for selector
+let allPositions = [];
+let currentPositionChart = null;
+
+// Position Price Chart with dropdown selector
 async function loadPositionChart() {
     const positions = await fetch('/api/positions').then(r => r.json());
 
@@ -1654,126 +1658,151 @@ async function loadPositionChart() {
     }
 
     document.getElementById('position-chart-card').style.display = 'block';
+    allPositions = positions;
 
-    // Clear existing charts
-    const container = document.getElementById('position-charts-container');
-    container.innerHTML = '';
+    // Populate dropdown selector
+    const selector = document.getElementById('position-selector');
+    selector.innerHTML = '<option value="">Select Position...</option>';
 
-    // Create a chart for each position
-    for (let i = 0; i < positions.length; i++) {
-        const position = positions[i];
-        const productId = position.product_id;
+    positions.forEach((pos, index) => {
+        const option = document.createElement('option');
+        option.value = index;
+        option.textContent = pos.product_id;
+        selector.appendChild(option);
+    });
 
-        try {
-            const response = await fetch(`/api/charts/position-history/${productId}`);
-            const data = await response.json();
+    // Auto-select first position if none selected
+    if (selector.value === '') {
+        selector.value = '0';
+        await displayPositionChart(0);
+    } else {
+        // Refresh currently selected position
+        await displayPositionChart(parseInt(selector.value));
+    }
+}
 
-            if (!data.success) {
-                console.error(`Error loading chart for ${productId}:`, data.error);
-                continue;
-            }
+async function changeSelectedPosition() {
+    const selector = document.getElementById('position-selector');
+    const selectedIndex = parseInt(selector.value);
 
-            // Create canvas for this position
-            const chartDiv = document.createElement('div');
-            chartDiv.style.marginBottom = '30px';
-            const canvas = document.createElement('canvas');
-            canvas.id = `position-chart-${i}`;
-            canvas.style.maxHeight = '400px';
-            chartDiv.appendChild(canvas);
-            container.appendChild(chartDiv);
+    if (!isNaN(selectedIndex)) {
+        await displayPositionChart(selectedIndex);
+    }
+}
 
-            const ctx = canvas.getContext('2d');
+async function displayPositionChart(positionIndex) {
+    if (!allPositions || positionIndex >= allPositions.length) {
+        return;
+    }
 
-            // Prepare data
-            const timestamps = data.price_history.map(p => new Date(p.timestamp));
-            const prices = data.price_history.map(p => p.price);
-            const entryTime = new Date(data.entry_timestamp);
-            const entryPrice = data.entry_price;
+    const position = allPositions[positionIndex];
+    const productId = position.product_id;
 
-            // Find current price
-            const currentPrice = prices[prices.length - 1];
-            const pnlPercent = ((currentPrice - entryPrice) / entryPrice * 100).toFixed(2);
-            const color = pnlPercent >= 0 ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)';
+    try {
+        const response = await fetch(`/api/charts/position-history/${productId}`);
+        const data = await response.json();
 
-            // Find min/max price for vertical line
-            const minPrice = Math.min(...prices);
-            const maxPrice = Math.max(...prices);
+        if (!data.success) {
+            console.error(`Error loading chart for ${productId}:`, data.error);
+            return;
+        }
 
-            new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: timestamps,
-                    datasets: [{
-                        label: `${productId} Price`,
-                        data: prices,
-                        borderColor: color,
-                        backgroundColor: color + '20',
-                        fill: true,
-                        tension: 0.4,
-                        pointRadius: 0
-                    }, {
-                        label: 'Entry Price',
-                        data: Array(prices.length).fill(entryPrice),
-                        borderColor: 'rgb(156, 163, 175)',
-                        borderDash: [5, 5],
-                        borderWidth: 2,
-                        pointRadius: 0,
-                        fill: false
-                    }, {
-                        label: 'Position Opened',
-                        data: [{x: entryTime, y: minPrice}, {x: entryTime, y: maxPrice}],
-                        borderColor: 'rgb(59, 130, 246)',
-                        borderWidth: 3,
-                        pointRadius: 0,
-                        showLine: true,
-                        fill: false,
-                        borderDash: [10, 5]
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: true,
-                    plugins: {
-                        title: {
-                            display: true,
-                            text: `${productId} - Entry: $${entryPrice.toFixed(2)} | Current: $${currentPrice.toFixed(2)} (${pnlPercent >= 0 ? '+' : ''}${pnlPercent}%)`
-                        },
-                        legend: {
-                            display: true
-                        }
+        const ctx = document.getElementById('position-chart').getContext('2d');
+
+        // Destroy existing chart
+        if (currentPositionChart) {
+            currentPositionChart.destroy();
+        }
+
+        // Prepare data
+        const timestamps = data.price_history.map(p => new Date(p.timestamp));
+        const prices = data.price_history.map(p => p.price);
+        const entryTime = new Date(data.entry_timestamp);
+        const entryPrice = data.entry_price;
+
+        // Find current price
+        const currentPrice = prices[prices.length - 1];
+        const pnlPercent = ((currentPrice - entryPrice) / entryPrice * 100).toFixed(2);
+        const color = pnlPercent >= 0 ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)';
+
+        // Find min/max price for vertical line
+        const minPrice = Math.min(...prices);
+        const maxPrice = Math.max(...prices);
+
+        currentPositionChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: timestamps,
+                datasets: [{
+                    label: `${productId} Price`,
+                    data: prices,
+                    borderColor: color,
+                    backgroundColor: color + '20',
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 0
+                }, {
+                    label: 'Entry Price',
+                    data: Array(prices.length).fill(entryPrice),
+                    borderColor: 'rgb(156, 163, 175)',
+                    borderDash: [5, 5],
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    fill: false
+                }, {
+                    label: 'Position Opened',
+                    data: [{x: entryTime, y: minPrice}, {x: entryTime, y: maxPrice}],
+                    borderColor: 'rgb(59, 130, 246)',
+                    borderWidth: 3,
+                    pointRadius: 0,
+                    showLine: true,
+                    fill: false,
+                    borderDash: [10, 5]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: `${productId} - Entry: $${entryPrice.toFixed(2)} | Current: $${currentPrice.toFixed(2)} (${pnlPercent >= 0 ? '+' : ''}${pnlPercent}%)`
                     },
-                    scales: {
-                        x: {
-                            type: 'time',
-                            time: {
-                                unit: 'hour',
-                                displayFormats: {
-                                    hour: 'MMM d, ha'
-                                }
-                            },
-                            title: {
-                                display: true,
-                                text: 'Time'
+                    legend: {
+                        display: true
+                    }
+                },
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            unit: 'hour',
+                            displayFormats: {
+                                hour: 'MMM d, ha'
                             }
                         },
-                        y: {
-                            title: {
-                                display: true,
-                                text: 'Price (USD)'
-                            },
-                            ticks: {
-                                callback: function(value) {
-                                    return '$' + value.toFixed(2);
-                                }
+                        title: {
+                            display: true,
+                            text: 'Time'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Price (USD)'
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return '$' + value.toFixed(2);
                             }
                         }
                     }
                 }
-            });
+            }
+        });
 
-        } catch (error) {
-            console.error(`Error loading chart for ${productId}:`, error);
-        }
+    } catch (error) {
+        console.error(`Error loading chart for ${productId}:`, error);
     }
 }
 

@@ -81,13 +81,18 @@
                 </div>
             </div>
 
-            <!-- Position Price Charts -->
+            <!-- Position Price Chart -->
             <div class="card" id="position-chart-card" style="display: none;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                     <h2>Position Price History (7 Days)</h2>
-                    <button class="btn btn-secondary btn-sm" onclick="refreshPositionChart()">🔄 Refresh</button>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <select id="position-selector" onchange="changeSelectedPosition()" style="padding: 5px 10px; font-size: 0.9em; border: 1px solid #ccc; border-radius: 4px;">
+                            <option value="">Select Position...</option>
+                        </select>
+                        <button class="btn btn-secondary btn-sm" onclick="refreshPositionChart()">🔄 Refresh</button>
+                    </div>
                 </div>
-                <div id="position-charts-container"></div>
+                <canvas id="position-chart" style="max-height: 400px;"></canvas>
             </div>
 
             <!-- Recent Trades -->
