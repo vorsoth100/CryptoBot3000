@@ -9,6 +9,7 @@ import json
 import shutil
 from typing import Dict, Optional, List, Tuple
 from datetime import datetime
+import pytz
 from src.utils import calculate_fees, calculate_position_size, calculate_break_even_price
 
 
@@ -54,6 +55,9 @@ class RiskManager:
         """
         self.config = config
         self.logger = logging.getLogger("CryptoBot.RiskManager")
+
+        # Set timezone to US Eastern
+        self.timezone = pytz.timezone('US/Eastern')
 
         # Position persistence file
         self.positions_file = config.get("positions_file", "data/positions.json")
@@ -167,12 +171,13 @@ class RiskManager:
             self.logger.error(f"Position already exists for {product_id}")
             return False
 
+        # Use Eastern timezone for timestamp
         position = Position(
             product_id=product_id,
             quantity=quantity,
             entry_price=entry_price,
             entry_fee=entry_fee,
-            timestamp=datetime.now()
+            timestamp=datetime.now(self.timezone)
         )
 
         self.positions[product_id] = position
@@ -219,6 +224,17 @@ class RiskManager:
         net_pnl = gross_pnl - total_fees
         pnl_pct = (net_pnl / (entry_value + position.entry_fee)) * 100
 
+        # Calculate hold time in Eastern timezone
+        now_eastern = datetime.now(self.timezone)
+        # Handle both timezone-aware and naive timestamps
+        if position.timestamp.tzinfo is None:
+            # Assume naive timestamps are already in Eastern time
+            position_time = self.timezone.localize(position.timestamp)
+        else:
+            position_time = position.timestamp
+
+        hold_time_hours = (now_eastern - position_time).total_seconds() / 3600
+
         pnl_details = {
             "product_id": product_id,
             "quantity": position.quantity,
@@ -230,7 +246,7 @@ class RiskManager:
             "total_fees": total_fees,
             "net_pnl": net_pnl,
             "pnl_pct": pnl_pct,
-            "hold_time": (datetime.now() - position.timestamp).total_seconds() / 3600,  # hours
+            "hold_time": hold_time_hours,
             "reason": reason
         }
 
@@ -499,7 +515,7 @@ class RiskManager:
                     'daily_pnl': self.daily_pnl,
                     'daily_trades': self.daily_trades,
                     'total_drawdown': self.total_drawdown,
-                    'last_updated': datetime.now().isoformat()
+                    'last_updated': datetime.now(self.timezone).isoformat()
                 },
                 'positions': {}
             }

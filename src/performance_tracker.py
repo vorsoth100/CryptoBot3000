@@ -9,6 +9,7 @@ import logging
 from typing import Dict, List, Optional
 from datetime import datetime, timedelta
 import os
+import pytz
 
 
 class PerformanceTracker:
@@ -23,6 +24,9 @@ class PerformanceTracker:
         """
         self.config = config
         self.logger = logging.getLogger("CryptoBot.Performance")
+
+        # Set timezone to US Eastern
+        self.timezone = pytz.timezone('US/Eastern')
 
         self.trade_log_file = config.get("trade_log_file", "logs/trades.csv")
         self.performance_file = config.get("performance_file", "logs/performance.json")
@@ -52,10 +56,13 @@ class PerformanceTracker:
             trade_data: Trade details dictionary
         """
         try:
+            # Get current time in Eastern timezone
+            now_eastern = datetime.now(self.timezone)
+
             with open(self.trade_log_file, 'a', newline='') as f:
                 writer = csv.writer(f)
                 writer.writerow([
-                    datetime.now().isoformat(),
+                    now_eastern.isoformat(),
                     trade_data.get('product_id', ''),
                     trade_data.get('side', ''),
                     trade_data.get('quantity', 0),
@@ -191,7 +198,8 @@ class PerformanceTracker:
         """Save performance snapshot to JSON"""
         try:
             metrics = self.calculate_metrics()
-            metrics['timestamp'] = datetime.now().isoformat()
+            # Get current time in Eastern timezone
+            metrics['timestamp'] = datetime.now(self.timezone).isoformat()
 
             # Load existing snapshots
             snapshots = []
@@ -216,8 +224,8 @@ class PerformanceTracker:
         """Generate daily performance report"""
         trades = self.get_all_trades()
 
-        # Filter today's trades
-        today = datetime.now().date()
+        # Filter today's trades (in Eastern timezone)
+        today = datetime.now(self.timezone).date()
         today_trades = [
             t for t in trades
             if datetime.fromisoformat(t['timestamp']).date() == today
