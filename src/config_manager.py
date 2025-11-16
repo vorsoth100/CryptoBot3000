@@ -108,7 +108,7 @@ class ConfigManager:
         "regime_check_interval_hours": 24,
 
         # News Sentiment (Crypto Panic)
-        "news_sentiment_enabled": True,
+        "news_sentiment_enabled": False,  # Disabled by default due to free tier rate limits
         "cryptopanic_api_key": "free",  # Use 'free' for public tier, or add your API key
         "news_sentiment_block_threshold": -30,  # Block trades if sentiment below this
         "news_sentiment_boost_threshold": 50,   # Boost score if sentiment above this
