@@ -115,6 +115,13 @@ class ConfigManager:
         "news_sentiment_cache_minutes": 30,     # Cache news for 30 minutes
         "news_sentiment_lookback_hours": 24,    # Analyze last 24 hours of news
 
+        # CoinGecko Data (Free tier - no API key required)
+        "coingecko_enabled": True,           # Enable CoinGecko trending and social data
+        "coingecko_cache_minutes": 10,       # Cache coin data for 10 minutes
+        "coingecko_trending_boost": 5,       # Score boost for trending coins
+        "coingecko_sentiment_boost": 3,      # Score boost for positive sentiment (>70%)
+        "coingecko_social_boost": 2,         # Score boost for high social activity
+
         # Notifications
         "email_enabled": False,
         "email_address": "",

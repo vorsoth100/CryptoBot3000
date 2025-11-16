@@ -179,6 +179,7 @@ Note: Each screener result includes technical indicators (RSI, MACD, Bollinger B
 
 **FEAR & GREED INDEX:** {clean_context.get('fear_greed', {}).get('value', 'N/A')} ({clean_context.get('fear_greed', {}).get('classification', 'N/A')})
 **BTC DOMINANCE:** {clean_context.get('btc_dominance', 'N/A')}%
+**TRENDING COINS (CoinGecko):** {', '.join(clean_context.get('trending_coins', [])) if clean_context.get('trending_coins') else 'N/A'}
 
 **NEWS SENTIMENT (Last 24h):**
 {clean_context.get('market_news_summary', 'No news data available')}

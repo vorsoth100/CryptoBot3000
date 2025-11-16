@@ -20,6 +20,7 @@ from src.risk_manager import RiskManager
 from src.performance_tracker import PerformanceTracker
 from src.claude_analyst import ClaudeAnalyst
 from src.news_sentiment import NewsSentiment
+from src.coingecko_data import CoinGeckoCollector
 from src.utils import setup_logging
 
 
@@ -62,7 +63,8 @@ class TradingBot:
         )
         self.signal_generator = SignalGenerator(self.config)
         self.news_sentiment = NewsSentiment(self.config)
-        self.screener = MarketScreener(self.config, self.data_collector, self.signal_generator, self.news_sentiment)
+        self.coingecko = CoinGeckoCollector(self.config)
+        self.screener = MarketScreener(self.config, self.data_collector, self.signal_generator, self.news_sentiment, self.coingecko)
         self.risk_manager = RiskManager(self.config, self.news_sentiment)
         self.performance_tracker = PerformanceTracker(self.config)
         self.claude_analyst = ClaudeAnalyst(self.config)
@@ -400,6 +402,16 @@ class TradingBot:
             except Exception as e:
                 self.logger.error(f"Error fetching price for {product_id}: {e}")
 
+        # Get CoinGecko trending coins
+        trending_coins = []
+        if self.config.get("coingecko_enabled", False):
+            try:
+                trending_data = self.coingecko.get_trending_coins()
+                if trending_data:
+                    trending_coins = [f"{coin['symbol']}" for coin in trending_data[:5]]
+            except Exception as e:
+                self.logger.error(f"Error fetching trending coins: {e}")
+
         return {
             "portfolio": {
                 "balance_usd": balance,
@@ -416,6 +428,7 @@ class TradingBot:
             "screener_results": screener_results,
             "fear_greed": fear_greed,
             "btc_dominance": btc_dominance,
+            "trending_coins": trending_coins,
             "news_sentiment": news_sentiment_data,
             "market_news_summary": market_news_summary,
             "recent_trades": recent_trades,

@@ -12,7 +12,7 @@ from src.signals import SignalGenerator
 class MarketScreener:
     """Screens market for trading opportunities"""
 
-    def __init__(self, config: Dict, data_collector, signal_generator: SignalGenerator, news_sentiment=None):
+    def __init__(self, config: Dict, data_collector, signal_generator: SignalGenerator, news_sentiment=None, coingecko=None):
         """
         Initialize market screener
 
@@ -21,11 +21,13 @@ class MarketScreener:
             data_collector: DataCollector instance
             signal_generator: SignalGenerator instance
             news_sentiment: NewsSentiment instance (optional)
+            coingecko: CoinGeckoCollector instance (optional)
         """
         self.config = config
         self.data_collector = data_collector
         self.signal_generator = signal_generator
         self.news_sentiment = news_sentiment
+        self.coingecko = coingecko
         self.logger = logging.getLogger("CryptoBot.Screener")
 
     def screen_coins(self, mode: Optional[str] = None) -> List[Dict]:
@@ -106,6 +108,23 @@ class MarketScreener:
                     except Exception as e:
                         self.logger.error(f"Error fetching news sentiment for {product_id}: {e}")
 
+                # Get CoinGecko data and boost score
+                coingecko_data = None
+                if self.coingecko and self.config.get("coingecko_enabled", False):
+                    try:
+                        should_boost, boost_amount, reason = self.coingecko.should_boost_score(product_id)
+                        if should_boost:
+                            score += boost_amount
+                            self.logger.info(
+                                f"{product_id}: Boosted score by +{boost_amount} for CoinGecko factors "
+                                f"({reason})"
+                            )
+
+                        # Get full coin data for opportunity metadata
+                        coingecko_data = self.coingecko.get_coin_data(product_id)
+                    except Exception as e:
+                        self.logger.error(f"Error fetching CoinGecko data for {product_id}: {e}")
+
                 if score > 0:
                     opportunity = {
                         "product_id": product_id,
@@ -127,6 +146,13 @@ class MarketScreener:
                         opportunity["news_sentiment"] = news_data["sentiment_score"]
                         opportunity["news_trending"] = news_data["trending"]
                         opportunity["news_count"] = news_data["news_count"]
+
+                    # Add CoinGecko data if available
+                    if coingecko_data:
+                        opportunity["coingecko_trending"] = self.coingecko.is_trending(product_id) if self.coingecko else False
+                        opportunity["sentiment_votes_up_pct"] = coingecko_data.get("sentiment_votes_up_percentage", 50)
+                        opportunity["social_score"] = coingecko_data.get("social_score", 0)
+                        opportunity["market_cap_rank"] = coingecko_data.get("market_cap_rank")
 
                     opportunities.append(opportunity)
 
