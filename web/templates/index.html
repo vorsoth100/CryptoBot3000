@@ -116,6 +116,14 @@
                     <p class="no-data">Click "Run Screener" to find opportunities</p>
                 </div>
             </div>
+
+            <div class="card">
+                <h2>📜 Screener History</h2>
+                <button class="btn btn-secondary" onclick="toggleScreenerHistory()" id="toggle-screener-history-btn">📋 Show History</button>
+                <div id="screener-history-container" style="display: none; margin-top: 15px;">
+                    <p class="no-data">No history available</p>
+                </div>
+            </div>
         </div>
 
         <!-- Configuration Tab -->
@@ -225,6 +233,14 @@
                 <h2>💡 Trade Recommendations</h2>
                 <div id="claude-recommendations-container">
                     <p class="no-data">No pending recommendations. Run analysis to get trade suggestions.</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>📜 Analysis History</h2>
+                <button class="btn btn-secondary" onclick="toggleClaudeHistory()" id="toggle-claude-history-btn">📋 Show History</button>
+                <div id="claude-history-container" style="display: none; margin-top: 15px;">
+                    <p class="no-data">No history available</p>
                 </div>
             </div>
 

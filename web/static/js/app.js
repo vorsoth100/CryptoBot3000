@@ -691,6 +691,135 @@ function displayTradeRecommendations(analysis) {
     }
 }
 
+// Claude Analysis History Functions
+function toggleClaudeHistory() {
+    const container = document.getElementById('claude-history-container');
+    const button = document.getElementById('toggle-claude-history-btn');
+
+    if (container.style.display === 'none') {
+        container.style.display = 'block';
+        button.textContent = '📋 Hide History';
+        displayClaudeHistory();
+    } else {
+        container.style.display = 'none';
+        button.textContent = '📋 Show History';
+    }
+}
+
+function displayClaudeHistory() {
+    const container = document.getElementById('claude-history-container');
+    const history = JSON.parse(localStorage.getItem('claudeAnalysisHistory') || '[]');
+
+    if (history.length === 0) {
+        container.innerHTML = '<p class="no-data">No analysis history available</p>';
+        return;
+    }
+
+    let html = '<div style="max-height: 600px; overflow-y: auto;">';
+
+    history.forEach((analysis, index) => {
+        try {
+            let parsed = analysis;
+            if (analysis.raw_analysis) {
+                const jsonMatch = analysis.raw_analysis.match(/```json\n([\s\S]*?)\n```/);
+                if (jsonMatch) {
+                    parsed = JSON.parse(jsonMatch[1]);
+                }
+            }
+
+            const assessment = parsed.market_assessment || {};
+            const actions = parsed.recommended_actions || [];
+
+            html += `<div style="border: 1px solid #ddd; padding: 15px; margin-bottom: 15px; border-radius: 4px; background: ${index === 0 ? '#f0f8ff' : '#fafafa'};">`;
+
+            // Header with timestamp
+            html += `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">`;
+            html += `<h4 style="margin: 0; color: #333;">${index === 0 ? '🔵 Latest' : `#${index + 1}`}</h4>`;
+            html += `<span style="color: #666; font-size: 0.9em;">📅 ${analysis.displayTime}</span>`;
+            html += `</div>`;
+
+            // Summary
+            html += `<div style="color: #333;">`;
+            html += `<p><strong>Regime:</strong> <span style="color: #2196f3;">${assessment.regime || 'Unknown'}</span> (${assessment.confidence || 0}% confidence)</p>`;
+            html += `<p><strong>Risk Level:</strong> ${assessment.risk_level || 'Unknown'}</p>`;
+
+            // Actions summary
+            const buyActions = actions.filter(a => a.action === 'buy');
+            const holdActions = actions.filter(a => a.action === 'hold');
+            const sellActions = actions.filter(a => a.action === 'sell');
+
+            html += `<p><strong>Recommendations:</strong> `;
+            if (buyActions.length > 0) html += `<span style="color: #4caf50;">BUY ${buyActions.map(a => a.coin).join(', ')}</span> `;
+            if (sellActions.length > 0) html += `<span style="color: #f44336;">SELL ${sellActions.map(a => a.coin).join(', ')}</span> `;
+            if (holdActions.length > 0) html += `<span style="color: #ff9800;">HOLD</span>`;
+            html += `</p>`;
+
+            html += `</div>`;
+            html += `</div>`;
+        } catch (e) {
+            console.error('Error displaying history item:', e);
+        }
+    });
+
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+// Screener History Functions
+function toggleScreenerHistory() {
+    const container = document.getElementById('screener-history-container');
+    const button = document.getElementById('toggle-screener-history-btn');
+
+    if (container.style.display === 'none') {
+        container.style.display = 'block';
+        button.textContent = '📋 Hide History';
+        displayScreenerHistory();
+    } else {
+        container.style.display = 'none';
+        button.textContent = '📋 Show History';
+    }
+}
+
+function displayScreenerHistory() {
+    const container = document.getElementById('screener-history-container');
+    const history = JSON.parse(localStorage.getItem('screenerResultsHistory') || '[]');
+
+    if (history.length === 0) {
+        container.innerHTML = '<p class="no-data">No screener history available</p>';
+        return;
+    }
+
+    let html = '<div style="max-height: 600px; overflow-y: auto;">';
+
+    history.forEach((data, index) => {
+        const results = data.results || [];
+
+        html += `<div style="border: 1px solid #ddd; padding: 15px; margin-bottom: 15px; border-radius: 4px; background: ${index === 0 ? '#f0f8ff' : '#fafafa'};">`;
+
+        // Header
+        html += `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">`;
+        html += `<h4 style="margin: 0; color: #333;">${index === 0 ? '🔵 Latest' : `#${index + 1}`} - ${results.length} opportunities</h4>`;
+        html += `<span style="color: #666; font-size: 0.9em;">📅 ${data.displayTime}</span>`;
+        html += `</div>`;
+
+        // Results summary
+        if (results.length > 0) {
+            html += '<div style="color: #333; font-size: 0.9em;">';
+            html += '<strong>Top coins:</strong> ';
+            html += results.slice(0, 5).map(r => `${r.product_id} (${r.signal})`).join(', ');
+            if (results.length > 5) html += `, +${results.length - 5} more`;
+            html += '</div>';
+        } else {
+            html += '<p class="no-data">No opportunities found</p>';
+        }
+
+        html += `</div>`;
+    });
+
+    html += '</div>';
+    container.innerHTML = html;
+}
+
 async function approveTrade(coin, positionSizePct, stopLoss, takeProfit) {
     if (!confirm(`Execute trade for ${coin}?\n\nPosition Size: ${(positionSizePct * 100).toFixed(0)}%\nStop Loss: $${stopLoss.toFixed(2)}\nTake Profit: $${takeProfit.toFixed(2)}`)) {
         return;
@@ -1103,6 +1232,12 @@ async function runScreener() {
             displayTime: new Date().toLocaleString()
         };
         localStorage.setItem('latestScreenerResults', JSON.stringify(screenerWithTimestamp));
+
+        // Save to history (keep last 10)
+        let history = JSON.parse(localStorage.getItem('screenerResultsHistory') || '[]');
+        history.unshift(screenerWithTimestamp);
+        history = history.slice(0, 10); // Keep only last 10
+        localStorage.setItem('screenerResultsHistory', JSON.stringify(history));
 
         statusDiv.innerHTML = `<p style="color: #4caf50;">✓ Found ${opportunities.length} opportunities</p>`;
         statusDiv.innerHTML += `<p style="color: #666; font-size: 0.9em;">📅 Last run: ${screenerWithTimestamp.displayTime}</p>`;
