@@ -133,7 +133,7 @@ function startAutoRefresh() {
         if (activeTab) {
             loadTabData(activeTab.getAttribute('data-tab'));
         }
-    }, 10000); // Refresh every 10 seconds
+    }, 300000); // Refresh every 5 minutes
 }
 
 function stopAutoRefresh() {
@@ -1717,17 +1717,24 @@ async function displayPositionChart(positionIndex) {
         // Prepare data
         const timestamps = data.price_history.map(p => new Date(p.timestamp));
         const prices = data.price_history.map(p => p.price);
+
+        // Parse entry timestamp - handle ISO format
         const entryTime = new Date(data.entry_timestamp);
         const entryPrice = data.entry_price;
+
+        console.log('Entry timestamp raw:', data.entry_timestamp);
+        console.log('Entry time parsed:', entryTime);
+        console.log('First price timestamp:', timestamps[0]);
+        console.log('Last price timestamp:', timestamps[timestamps.length - 1]);
 
         // Find current price
         const currentPrice = prices[prices.length - 1];
         const pnlPercent = ((currentPrice - entryPrice) / entryPrice * 100).toFixed(2);
         const color = pnlPercent >= 0 ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)';
 
-        // Find min/max price for vertical line
-        const minPrice = Math.min(...prices);
-        const maxPrice = Math.max(...prices);
+        // Find min/max price for vertical line - add some padding
+        const minPrice = Math.min(...prices) * 0.995;
+        const maxPrice = Math.max(...prices) * 1.005;
 
         currentPositionChart = new Chart(ctx, {
             type: 'line',
