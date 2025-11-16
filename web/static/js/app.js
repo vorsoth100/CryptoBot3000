@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', function() {
     loadStatus();
     loadConfig();
     loadDashboard();  // Load dashboard data immediately on page load
+    loadScreenerConfig();  // Load screener configuration on page load
 
     // Setup auto-refresh
     startAutoRefresh();
