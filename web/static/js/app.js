@@ -843,8 +843,9 @@ function displayAllTradesTable(trades, container) {
         if (isClosed) {
             const pnlClass = trade.net_pnl >= 0 ? 'positive' : 'negative';
             const pnlColor = trade.net_pnl >= 0 ? '#4caf50' : '#f44336';
+            const pnlPct = (trade.pnl_pct !== null && trade.pnl_pct !== undefined) ? trade.pnl_pct : 0;
             html += `<span style="padding: 4px 8px; border-radius: 4px; font-weight: bold; color: white; background: ${pnlColor};">`;
-            html += `${trade.net_pnl >= 0 ? '+' : ''}${formatUSD(trade.net_pnl)} (${trade.pnl_pct >= 0 ? '+' : ''}${trade.pnl_pct.toFixed(2)}%)`;
+            html += `${trade.net_pnl >= 0 ? '+' : ''}${formatUSD(trade.net_pnl)} (${pnlPct >= 0 ? '+' : ''}${pnlPct.toFixed(2)}%)`;
             html += `</span>`;
         } else {
             html += `<span style="padding: 4px 8px; border-radius: 4px; background: #e0e0e0; color: #666;">OPEN</span>`;
@@ -855,17 +856,17 @@ function displayAllTradesTable(trades, container) {
         html += `</div>`;
 
         html += `<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; font-size: 0.95em;">`;
-        html += `<div><strong>Price:</strong> ${formatUSD(trade.price)}</div>`;
-        html += `<div><strong>Quantity:</strong> ${trade.quantity.toFixed(6)}</div>`;
+        html += `<div><strong>Price:</strong> ${formatUSD(trade.price || 0)}</div>`;
+        html += `<div><strong>Quantity:</strong> ${(trade.quantity || 0).toFixed(6)}</div>`;
         html += `<div><strong>Trade Value:</strong> ${formatUSD(tradeValue)}</div>`;
-        html += `<div><strong>Fees:</strong> ${formatUSD(trade.fee_usd)}</div>`;
+        html += `<div><strong>Fees:</strong> ${formatUSD(trade.fee_usd || 0)}</div>`;
 
         if (isClosed) {
-            const totalCost = tradeValue + trade.fee_usd;
+            const totalCost = tradeValue + (trade.fee_usd || 0);
             html += `<div><strong>Total Cost:</strong> ${formatUSD(totalCost)}</div>`;
             html += `<div><strong>Hold Time:</strong> ${trade.hold_time_hours ? trade.hold_time_hours.toFixed(1) + 'h' : 'N/A'}</div>`;
         } else {
-            const totalCost = tradeValue + trade.fee_usd;
+            const totalCost = tradeValue + (trade.fee_usd || 0);
             html += `<div><strong>Total Cost:</strong> ${formatUSD(totalCost)}</div>`;
         }
 
