@@ -129,7 +129,14 @@ class NewsSentiment:
             self.failure_count += 1
             self.last_failure_time = datetime.now()
 
-            if e.response and e.response.status_code == 429:
+            # Check if it's a 429 rate limit error
+            if hasattr(e, 'response') and e.response is not None and e.response.status_code == 429:
+                self.logger.error(
+                    f"Rate limit exceeded (429). Failure #{self.failure_count}. "
+                    f"Entering {self.backoff_minutes} min backoff period."
+                )
+            elif "429" in str(e):
+                # Fallback check if response object isn't available but error message contains 429
                 self.logger.error(
                     f"Rate limit exceeded (429). Failure #{self.failure_count}. "
                     f"Entering {self.backoff_minutes} min backoff period."
