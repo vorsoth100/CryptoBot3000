@@ -12,7 +12,7 @@ from src.signals import SignalGenerator
 class MarketScreener:
     """Screens market for trading opportunities"""
 
-    def __init__(self, config: Dict, data_collector, signal_generator: SignalGenerator):
+    def __init__(self, config: Dict, data_collector, signal_generator: SignalGenerator, news_sentiment=None):
         """
         Initialize market screener
 
@@ -20,10 +20,12 @@ class MarketScreener:
             config: Configuration dictionary
             data_collector: DataCollector instance
             signal_generator: SignalGenerator instance
+            news_sentiment: NewsSentiment instance (optional)
         """
         self.config = config
         self.data_collector = data_collector
         self.signal_generator = signal_generator
+        self.news_sentiment = news_sentiment
         self.logger = logging.getLogger("CryptoBot.Screener")
 
     def screen_coins(self, mode: Optional[str] = None) -> List[Dict]:
@@ -66,8 +68,39 @@ class MarketScreener:
                 # Mode-specific scoring
                 score = self._calculate_score(mode, df, signal_data, price_changes)
 
+                # Get news sentiment if enabled
+                news_data = None
+                if self.news_sentiment and self.config.get("news_sentiment_enabled", False):
+                    try:
+                        news_data = self.news_sentiment.get_sentiment(product_id)
+
+                        if news_data:
+                            # Check if news sentiment blocks this opportunity
+                            block_threshold = self.config.get("news_sentiment_block_threshold", -30)
+                            if news_data["sentiment_score"] < block_threshold:
+                                self.logger.warning(
+                                    f"{product_id}: Blocked by negative news sentiment "
+                                    f"({news_data['sentiment_score']}% < {block_threshold}%)"
+                                )
+                                if news_data["top_headlines"]:
+                                    self.logger.warning(f"  Top headline: {news_data['top_headlines'][0][:100]}")
+                                continue  # Skip this coin
+
+                            # Boost score for positive news
+                            boost_threshold = self.config.get("news_sentiment_boost_threshold", 50)
+                            if news_data["sentiment_score"] > boost_threshold and news_data["trending"]:
+                                score_boost = 10
+                                score += score_boost
+                                self.logger.info(
+                                    f"{product_id}: Boosted score by +{score_boost} for positive news "
+                                    f"({news_data['sentiment_score']}%)"
+                                )
+
+                    except Exception as e:
+                        self.logger.error(f"Error fetching news sentiment for {product_id}: {e}")
+
                 if score > 0:
-                    opportunities.append({
+                    opportunity = {
                         "product_id": product_id,
                         "symbol": symbol,
                         "score": score,
@@ -80,7 +113,15 @@ class MarketScreener:
                         "price_change_30d": price_changes.get("price_change_30d"),
                         "indicators": signal_data['indicators'],
                         "volume_spike": signal_data['volume_spike']
-                    })
+                    }
+
+                    # Add news sentiment data if available
+                    if news_data:
+                        opportunity["news_sentiment"] = news_data["sentiment_score"]
+                        opportunity["news_trending"] = news_data["trending"]
+                        opportunity["news_count"] = news_data["news_count"]
+
+                    opportunities.append(opportunity)
 
             except Exception as e:
                 self.logger.error(f"Error screening {product_id}: {e}")

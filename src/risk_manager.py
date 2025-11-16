@@ -46,14 +46,16 @@ class Position:
 class RiskManager:
     """Manages trading risk and position sizing"""
 
-    def __init__(self, config: Dict):
+    def __init__(self, config: Dict, news_sentiment=None):
         """
         Initialize risk manager
 
         Args:
             config: Configuration dictionary
+            news_sentiment: NewsSentiment instance (optional)
         """
         self.config = config
+        self.news_sentiment = news_sentiment
         self.logger = logging.getLogger("CryptoBot.RiskManager")
 
         # Set timezone to US Eastern
@@ -150,6 +152,16 @@ class RiskManager:
 
         if self.daily_pnl <= -max_daily_loss_usd:
             return False, f"Daily loss limit (${max_daily_loss_usd:.2f}) reached"
+
+        # Check news sentiment if enabled
+        if self.news_sentiment and self.config.get("news_sentiment_enabled", False):
+            try:
+                should_block, news_reason = self.news_sentiment.should_block_trade(product_id)
+                if should_block:
+                    return False, f"News sentiment risk: {news_reason}"
+            except Exception as e:
+                self.logger.warning(f"Error checking news sentiment for {product_id}: {e}")
+                # Don't block trade if news check fails, just log warning
 
         return True, "OK"
 

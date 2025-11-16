@@ -107,6 +107,14 @@ class ConfigManager:
         "fear_greed_extreme_greed": 75,
         "regime_check_interval_hours": 24,
 
+        # News Sentiment (Crypto Panic)
+        "news_sentiment_enabled": True,
+        "cryptopanic_api_key": "free",  # Use 'free' for public tier, or add your API key
+        "news_sentiment_block_threshold": -30,  # Block trades if sentiment below this
+        "news_sentiment_boost_threshold": 50,   # Boost score if sentiment above this
+        "news_sentiment_cache_minutes": 30,     # Cache news for 30 minutes
+        "news_sentiment_lookback_hours": 24,    # Analyze last 24 hours of news
+
         # Notifications
         "email_enabled": False,
         "email_address": "",

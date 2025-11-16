@@ -180,6 +180,14 @@ Note: Each screener result includes technical indicators (RSI, MACD, Bollinger B
 **FEAR & GREED INDEX:** {clean_context.get('fear_greed', {}).get('value', 'N/A')} ({clean_context.get('fear_greed', {}).get('classification', 'N/A')})
 **BTC DOMINANCE:** {clean_context.get('btc_dominance', 'N/A')}%
 
+**NEWS SENTIMENT (Last 24h):**
+{clean_context.get('market_news_summary', 'No news data available')}
+
+**COIN-SPECIFIC NEWS SENTIMENT:**
+{json.dumps(clean_context.get('news_sentiment', {}), indent=2)}
+
+Note: News sentiment scores range from -100 (very bearish) to +100 (very bullish). Scores below -30 indicate significant negative news that may impact price. Scores above +50 with "trending" flag indicate strong positive catalyst.
+
 **RECENT TRADES:**
 {json.dumps(clean_context.get('recent_trades', []), indent=2)}
 
@@ -223,10 +231,17 @@ Provide a comprehensive analysis in JSON format with:
 
 **DECISION-MAKING FRAMEWORK:**
 1. **SCAN SCREENER RESULTS** - Look for coins with high scores and momentum indicators
-2. **IDENTIFY HOT COINS** - Volume spikes + positive price action + not overbought
-3. **CONVICTION THRESHOLD** - Only recommend trades with >{self.config.get('claude_confidence_threshold', 80)}% conviction
-4. **POSITION SIZING** - Suggest 15-25% of capital per trade (higher for high conviction)
-5. **PROFIT TARGETS** - Set realistic targets: 10% (TP1), 20% (TP2), 30% (TP3)
+2. **CHECK NEWS SENTIMENT** - Avoid coins with negative news (<-30%), favor coins with positive catalysts (>+50%)
+3. **IDENTIFY HOT COINS** - Volume spikes + positive price action + not overbought + positive/neutral news
+4. **CONVICTION THRESHOLD** - Only recommend trades with >{self.config.get('claude_confidence_threshold', 80)}% conviction
+5. **POSITION SIZING** - Suggest 15-25% of capital per trade (higher for high conviction + positive news)
+6. **PROFIT TARGETS** - Set realistic targets: 10% (TP1), 20% (TP2), 30% (TP3)
+
+**NEWS SENTIMENT GUIDELINES:**
+- AVOID coins with sentiment < -30% (negative news risk)
+- CAUTION on coins with sentiment -30% to 0% (neutral but watch for deterioration)
+- FAVORABLE coins with sentiment 0% to +30% (neutral to slightly positive)
+- STRONG BUY candidates with sentiment > +50% AND "trending" flag (positive catalyst + momentum)
 6. **RISK MANAGEMENT** - Always set stop loss at 6% below entry
 
 **IMPORTANT RULES:**

@@ -18,6 +18,7 @@ from src.screener import MarketScreener
 from src.risk_manager import RiskManager
 from src.performance_tracker import PerformanceTracker
 from src.claude_analyst import ClaudeAnalyst
+from src.news_sentiment import NewsSentiment
 from src.utils import setup_logging
 
 
@@ -59,8 +60,9 @@ class TradingBot:
             cache_minutes=self.config.get("screener_cache_minutes", 60)
         )
         self.signal_generator = SignalGenerator(self.config)
-        self.screener = MarketScreener(self.config, self.data_collector, self.signal_generator)
-        self.risk_manager = RiskManager(self.config)
+        self.news_sentiment = NewsSentiment(self.config)
+        self.screener = MarketScreener(self.config, self.data_collector, self.signal_generator, self.news_sentiment)
+        self.risk_manager = RiskManager(self.config, self.news_sentiment)
         self.performance_tracker = PerformanceTracker(self.config)
         self.claude_analyst = ClaudeAnalyst(self.config)
 
@@ -346,6 +348,29 @@ class TradingBot:
         # Get BTC dominance
         btc_dominance = self.data_collector.get_btc_dominance()
 
+        # Get news sentiment for screener results and key coins
+        news_sentiment_data = {}
+        if self.config.get("news_sentiment_enabled", False):
+            try:
+                # Get sentiment for top screener results
+                for opp in screener_results[:5]:  # Top 5 opportunities
+                    sentiment = self.news_sentiment.get_sentiment(opp["product_id"])
+                    if sentiment:
+                        news_sentiment_data[opp["product_id"]] = {
+                            "sentiment_score": sentiment["sentiment_score"],
+                            "news_count": sentiment["news_count"],
+                            "trending": sentiment["trending"],
+                            "top_headline": sentiment["top_headlines"][0] if sentiment["top_headlines"] else ""
+                        }
+
+                # Get overall market sentiment summary
+                market_news_summary = self.news_sentiment.get_sentiment_summary()
+            except Exception as e:
+                self.logger.error(f"Error fetching news sentiment: {e}")
+                market_news_summary = "News sentiment unavailable"
+        else:
+            market_news_summary = "News sentiment disabled"
+
         # Get recent trades
         recent_trades = self.performance_tracker.get_all_trades()[-10:]
 
@@ -386,6 +411,8 @@ class TradingBot:
             "screener_results": screener_results,
             "fear_greed": fear_greed,
             "btc_dominance": btc_dominance,
+            "news_sentiment": news_sentiment_data,
+            "market_news_summary": market_news_summary,
             "recent_trades": recent_trades,
             "performance": performance
         }
