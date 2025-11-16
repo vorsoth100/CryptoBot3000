@@ -6,6 +6,7 @@ Handles position sizing, stop losses, and risk controls
 import logging
 import os
 import json
+import shutil
 from typing import Dict, Optional, List, Tuple
 from datetime import datetime
 from src.utils import calculate_fees, calculate_position_size, calculate_break_even_price
@@ -451,10 +452,15 @@ class RiskManager:
                     positions_data = data.get('positions', {})
                 else:
                     # Legacy format (positions only, no metadata)
-                    self.logger.warning("Loading legacy position format without capital state")
+                    # Create backup before migration
+                    backup_file = self.positions_file + '.backup'
+                    shutil.copy2(self.positions_file, backup_file)
+                    self.logger.warning(f"Loading legacy position format without capital state. Backup saved to {backup_file}")
+                    self.logger.warning("Calculating capital based on positions and initial_capital")
                     positions_data = data
 
                 # Load positions
+                total_position_value = 0.0
                 for product_id, pos_data in positions_data.items():
                     # Recreate Position objects
                     position = Position(
@@ -465,6 +471,19 @@ class RiskManager:
                         timestamp=datetime.fromisoformat(pos_data['entry_time'])
                     )
                     self.positions[product_id] = position
+
+                    # Calculate total capital locked in positions
+                    entry_value = position.quantity * position.entry_price
+                    total_position_value += (entry_value + position.entry_fee)
+
+                # If loading legacy format, calculate current_capital
+                if '_metadata' not in data and len(self.positions) > 0:
+                    # Capital = initial_capital - money locked in positions
+                    self.current_capital = self.initial_capital - total_position_value
+                    self.logger.info(f"Migrated from legacy format: Initial=${self.initial_capital:.2f}, Locked in positions=${total_position_value:.2f}, Available=${self.current_capital:.2f}")
+                    # Save in new format immediately
+                    self._save_positions()
+                    self.logger.info(f"Migrated to new format with metadata")
 
                 self.logger.info(f"Loaded {len(self.positions)} positions from {self.positions_file}")
         except Exception as e:
