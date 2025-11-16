@@ -303,6 +303,9 @@ function displayPositions(positions) {
         const entryValue = pos.quantity * pos.entry_price;
         const currentValue = pos.quantity * currentPrice;
 
+        // Determine color for current value based on profit/loss
+        const valueClass = currentValue > entryValue ? 'positive' : 'negative';
+
         // Calculate total values for stop loss and take profit
         const stopLossValue = pos.stop_loss_price ? pos.quantity * pos.stop_loss_price : 0;
         const takeProfitValue = pos.take_profit_price ? pos.quantity * pos.take_profit_price : 0;
@@ -313,7 +316,7 @@ function displayPositions(positions) {
         html += `<td>${formatUSD(pos.entry_price)}</td>`;
         html += `<td>${formatUSD(entryValue)}</td>`;
         html += `<td>${formatUSD(currentPrice)}</td>`;
-        html += `<td><strong>${formatUSD(currentValue)}</strong></td>`;
+        html += `<td class="${valueClass}"><strong>${formatUSD(currentValue)}</strong></td>`;
         html += `<td>${formatUSD(pos.entry_fee || 0)}</td>`;
         html += `<td class="${pnlClass}"><strong>${formatUSD(pos.net_pnl || 0)}</strong></td>`;
         html += `<td class="${pnlClass}"><strong>${(pos.pnl_pct || 0).toFixed(2)}%</strong></td>`;
