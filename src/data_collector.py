@@ -372,10 +372,11 @@ class DataCollector:
                 return []
 
             # Convert to list of {timestamp, price} for charting
+            # Note: idx is the timestamp (set as index in get_historical_candles)
             price_history = []
             for idx, row in df.iterrows():
                 price_history.append({
-                    "timestamp": int(row['time'].timestamp() * 1000) if hasattr(row['time'], 'timestamp') else int(idx.timestamp() * 1000),
+                    "timestamp": int(idx.timestamp() * 1000),  # idx is the timestamp
                     "price": float(row['close'])
                 })
 
