@@ -19,6 +19,7 @@ except ImportError:
     # Define dummy types when telegram is not available
     Update = None
     ContextTypes = type('ContextTypes', (), {'DEFAULT_TYPE': None})
+    ParseMode = type('ParseMode', (), {'MARKDOWN': 'Markdown'})
 
 
 class TelegramNotifier:
