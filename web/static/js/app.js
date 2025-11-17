@@ -439,6 +439,7 @@ async function loadConfig() {
         document.getElementById('claude_confidence_threshold').value = config.claude_confidence_threshold;
         document.getElementById('coingecko_enabled').checked = config.coingecko_enabled;
         document.getElementById('news_sentiment_enabled').checked = config.news_sentiment_enabled;
+        document.getElementById('lunarcrush_enabled').checked = config.lunarcrush_enabled !== false;
 
         // Telegram configuration
         document.getElementById('telegram_enabled').checked = config.telegram_enabled || false;
@@ -477,6 +478,7 @@ async function saveConfig() {
             claude_confidence_threshold: parseInt(document.getElementById('claude_confidence_threshold').value),
             coingecko_enabled: document.getElementById('coingecko_enabled').checked,
             news_sentiment_enabled: document.getElementById('news_sentiment_enabled').checked,
+            lunarcrush_enabled: document.getElementById('lunarcrush_enabled').checked,
 
             // Telegram configuration
             telegram_enabled: document.getElementById('telegram_enabled').checked,
