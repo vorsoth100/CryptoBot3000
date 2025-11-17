@@ -16,6 +16,9 @@ try:
     TELEGRAM_AVAILABLE = True
 except ImportError:
     TELEGRAM_AVAILABLE = False
+    # Define dummy types when telegram is not available
+    Update = None
+    ContextTypes = type('ContextTypes', (), {'DEFAULT_TYPE': None})
 
 
 class TelegramNotifier:
