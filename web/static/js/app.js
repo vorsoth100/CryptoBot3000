@@ -967,7 +967,7 @@ async function approveTrade(coin, positionSizePct, stopLoss, takeProfit) {
         if (result.success) {
             alert(`✅ Trade executed successfully!\n\n${result.message}`);
             // Move the recommendation to past recommendations
-            moveToPastRecommendations(coin, 'approved', `Trade executed: ${result.message}`);
+            await moveToPastRecommendations(coin, 'approved', `Trade executed: ${result.message}`);
             loadStatus();  // Refresh dashboard
             loadDashboard();
         } else {
@@ -1010,9 +1010,9 @@ async function approveTrade(coin, positionSizePct, stopLoss, takeProfit) {
     }
 }
 
-function rejectTrade(coin) {
+async function rejectTrade(coin) {
     if (confirm(`Reject trade recommendation for ${coin}?`)) {
-        moveToPastRecommendations(coin, 'rejected', 'User rejected recommendation');
+        await moveToPastRecommendations(coin, 'rejected', 'User rejected recommendation');
         alert(`Trade for ${coin} rejected and moved to past recommendations`);
     }
 }
@@ -1034,7 +1034,7 @@ function removeRecommendation(coin) {
     }
 }
 
-function moveToPastRecommendations(coin, action, message) {
+async function moveToPastRecommendations(coin, action, message) {
     // Find the recommendation card
     const container = document.getElementById('claude-recommendations-container');
     const cards = container.querySelectorAll('div[style*="border: 2px solid"]');
@@ -1049,21 +1049,30 @@ function moveToPastRecommendations(coin, action, message) {
     });
 
     if (cardHTML) {
-        // Store in localStorage
-        let pastRecs = JSON.parse(localStorage.getItem('pastRecommendations') || '[]');
-        pastRecs.unshift({
-            coin: coin,
-            action: action,
-            message: message,
-            timestamp: new Date().toLocaleString(),
-            cardHTML: cardHTML
-        });
-        // Keep only last 20
-        pastRecs = pastRecs.slice(0, 20);
-        localStorage.setItem('pastRecommendations', JSON.stringify(pastRecs));
+        // Save to server via API
+        try {
+            const response = await fetch('/api/recommendations/past', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    coin: coin,
+                    action: action,
+                    message: message,
+                    timestamp: new Date().toLocaleString(),
+                    cardHTML: cardHTML
+                })
+            });
 
-        // Refresh past recommendations display
-        displayPastRecommendations();
+            const result = await response.json();
+            if (result.success) {
+                // Refresh past recommendations display
+                displayPastRecommendations();
+            } else {
+                console.error('Failed to save past recommendation:', result.error);
+            }
+        } catch (error) {
+            console.error('Error saving past recommendation:', error);
+        }
     }
 
     // If no recommendations left, show "no data" message
@@ -1086,42 +1095,71 @@ function togglePastRecommendations() {
     }
 }
 
-function displayPastRecommendations() {
+async function displayPastRecommendations() {
     const container = document.getElementById('past-recommendations-container');
-    const pastRecs = JSON.parse(localStorage.getItem('pastRecommendations') || '[]');
 
-    if (pastRecs.length === 0) {
-        container.innerHTML = '<p class="no-data">No past recommendations yet</p>';
-        return;
+    try {
+        const response = await fetch('/api/recommendations/past');
+        const result = await response.json();
+
+        if (!result.success) {
+            console.error('Failed to load past recommendations:', result.error);
+            container.innerHTML = '<p class="no-data">Error loading past recommendations</p>';
+            return;
+        }
+
+        const pastRecs = result.recommendations || [];
+
+        if (pastRecs.length === 0) {
+            container.innerHTML = '<p class="no-data">No past recommendations yet</p>';
+            return;
+        }
+
+        let html = '';
+        pastRecs.forEach(rec => {
+            const statusColor = rec.action === 'approved' ? '#4caf50' : rec.action === 'rejected' ? '#f44336' : '#ff9800';
+            const statusIcon = rec.action === 'approved' ? '✅' : rec.action === 'rejected' ? '❌' : '⏸️';
+
+            // Modify the card to show it's from the past
+            let modifiedCard = rec.cardHTML;
+            // Remove the action buttons
+            modifiedCard = modifiedCard.replace(/<div style="display: flex; gap: 10px; margin-top: 15px;">.*?<\/div>/s, '');
+            // Add status badge
+            const statusBadge = `<div style="background: ${statusColor}; color: white; padding: 10px; border-radius: 4px; margin-top: 10px; font-weight: bold;">
+                ${statusIcon} ${rec.action.toUpperCase()} - ${rec.timestamp}<br>
+                <span style="font-size: 0.9em; font-weight: normal;">${rec.message}</span>
+            </div>`;
+            modifiedCard = modifiedCard.replace('</div>', statusBadge + '</div>');
+
+            html += modifiedCard;
+        });
+
+        html += `<button class="btn btn-danger btn-sm" onclick="clearPastRecommendations()" style="margin-top: 15px;">🗑️ Clear History</button>`;
+        container.innerHTML = html;
+    } catch (error) {
+        console.error('Error loading past recommendations:', error);
+        container.innerHTML = '<p class="no-data">Error loading past recommendations</p>';
     }
-
-    let html = '';
-    pastRecs.forEach(rec => {
-        const statusColor = rec.action === 'approved' ? '#4caf50' : rec.action === 'rejected' ? '#f44336' : '#ff9800';
-        const statusIcon = rec.action === 'approved' ? '✅' : rec.action === 'rejected' ? '❌' : '⏸️';
-
-        // Modify the card to show it's from the past
-        let modifiedCard = rec.cardHTML;
-        // Remove the action buttons
-        modifiedCard = modifiedCard.replace(/<div style="display: flex; gap: 10px; margin-top: 15px;">.*?<\/div>/s, '');
-        // Add status badge
-        const statusBadge = `<div style="background: ${statusColor}; color: white; padding: 10px; border-radius: 4px; margin-top: 10px; font-weight: bold;">
-            ${statusIcon} ${rec.action.toUpperCase()} - ${rec.timestamp}<br>
-            <span style="font-size: 0.9em; font-weight: normal;">${rec.message}</span>
-        </div>`;
-        modifiedCard = modifiedCard.replace('</div>', statusBadge + '</div>');
-
-        html += modifiedCard;
-    });
-
-    html += `<button class="btn btn-danger btn-sm" onclick="clearPastRecommendations()" style="margin-top: 15px;">🗑️ Clear History</button>`;
-    container.innerHTML = html;
 }
 
-function clearPastRecommendations() {
+async function clearPastRecommendations() {
     if (confirm('Clear all past recommendations history?')) {
-        localStorage.removeItem('pastRecommendations');
-        displayPastRecommendations();
+        try {
+            const response = await fetch('/api/recommendations/past', {
+                method: 'DELETE'
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                displayPastRecommendations();
+            } else {
+                console.error('Failed to clear past recommendations:', result.error);
+                alert('Error clearing past recommendations');
+            }
+        } catch (error) {
+            console.error('Error clearing past recommendations:', error);
+            alert('Error clearing past recommendations');
+        }
     }
 }
 

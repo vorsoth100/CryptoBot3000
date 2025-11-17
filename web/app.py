@@ -518,6 +518,72 @@ def close_position(product_id):
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@app.route('/api/recommendations/past', methods=['GET'])
+def get_past_recommendations():
+    """Get past recommendations from file"""
+    try:
+        past_recs_file = "data/past_recommendations.json"
+        if os.path.exists(past_recs_file):
+            with open(past_recs_file, 'r') as f:
+                data = json.load(f)
+            return jsonify({"success": True, "recommendations": data})
+        else:
+            return jsonify({"success": True, "recommendations": []})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/recommendations/past', methods=['POST'])
+def save_past_recommendation():
+    """Save a past recommendation to file"""
+    try:
+        data = request.json
+        if not data:
+            return jsonify({"success": False, "error": "No data provided"}), 400
+
+        past_recs_file = "data/past_recommendations.json"
+
+        # Load existing recommendations
+        if os.path.exists(past_recs_file):
+            with open(past_recs_file, 'r') as f:
+                past_recs = json.load(f)
+        else:
+            past_recs = []
+
+        # Add new recommendation at the beginning
+        past_recs.insert(0, data)
+
+        # Keep only last 50
+        past_recs = past_recs[:50]
+
+        # Save back to file
+        os.makedirs("data", exist_ok=True)
+        with open(past_recs_file, 'w') as f:
+            json.dump(past_recs, f, indent=2)
+
+        return jsonify({"success": True})
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/recommendations/past', methods=['DELETE'])
+def clear_past_recommendations():
+    """Clear all past recommendations"""
+    try:
+        past_recs_file = "data/past_recommendations.json"
+
+        # Write empty array to file
+        os.makedirs("data", exist_ok=True)
+        with open(past_recs_file, 'w') as f:
+            json.dump([], f, indent=2)
+
+        return jsonify({"success": True})
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @app.route('/api/test/coinbase', methods=['POST'])
 def test_coinbase():
     """Test Coinbase API connection"""
