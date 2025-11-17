@@ -41,7 +41,8 @@ class NewsSentiment:
         # Failure tracking to prevent retry storms
         self.last_failure_time = None
         self.failure_count = 0
-        self.backoff_minutes = 60  # Wait 60 minutes after failures (conservative for Crypto Panic free tier)
+        self.backoff_minutes = 60  # Initial backoff: 60 minutes
+        self.max_backoff_minutes = 1440  # Max backoff: 24 hours (free tier is very limited)
 
     def _is_cache_valid(self, key: str) -> bool:
         """Check if cached data is still valid"""
@@ -84,10 +85,12 @@ class NewsSentiment:
         # Check if we're in backoff period after failures
         if self.last_failure_time:
             time_since_failure = (datetime.now() - self.last_failure_time).total_seconds() / 60
-            if time_since_failure < self.backoff_minutes:
+            # Calculate current backoff time (exponential: doubles with each failure, max 24h)
+            current_backoff = min(self.backoff_minutes * (2 ** (self.failure_count - 1)), self.max_backoff_minutes)
+            if time_since_failure < current_backoff:
                 # Still in backoff period - return cached data or None
                 self.logger.debug(
-                    f"In backoff period ({time_since_failure:.1f}/{self.backoff_minutes} min) "
+                    f"In backoff period ({time_since_failure:.1f}/{current_backoff:.0f} min) "
                     f"after {self.failure_count} failure(s). Skipping API call."
                 )
                 return self.all_news_cache  # May be None or old data
@@ -129,16 +132,17 @@ class NewsSentiment:
             self.last_failure_time = datetime.now()
 
             # Check if it's a 429 rate limit error
+            current_backoff = min(self.backoff_minutes * (2 ** (self.failure_count - 1)), self.max_backoff_minutes)
             if hasattr(e, 'response') and e.response is not None and e.response.status_code == 429:
                 self.logger.error(
                     f"Rate limit exceeded (429). Failure #{self.failure_count}. "
-                    f"Waiting {self.backoff_minutes} min before retry. News sentiment disabled until then."
+                    f"Exponential backoff: waiting {current_backoff:.0f} min before retry. News sentiment disabled until then."
                 )
             elif "429" in str(e):
                 # Fallback check if response object isn't available but error message contains 429
                 self.logger.error(
                     f"Rate limit exceeded (429). Failure #{self.failure_count}. "
-                    f"Waiting {self.backoff_minutes} min before retry. News sentiment disabled until then."
+                    f"Exponential backoff: waiting {current_backoff:.0f} min before retry. News sentiment disabled until then."
                 )
             else:
                 self.logger.error(f"HTTP error fetching news: {e}")
