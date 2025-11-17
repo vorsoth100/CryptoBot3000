@@ -13,7 +13,7 @@
         <!-- Header -->
         <header>
             <div>
-                <h1>🤖 CryptoBot Dashboard</h1>
+                <h1>🤖 CryptoBot3000 Dashboard</h1>
                 <span class="version-badge">v{{ version }}</span>
             </div>
             <div class="bot-status">
@@ -47,6 +47,24 @@
                 </div>
                 <div class="mode-indicator">
                     <span id="mode-text">Mode: <strong id="mode-value">DRY RUN</strong></span>
+                </div>
+            </div>
+
+            <!-- Claude AI Recommendations Banner -->
+            <div id="claude-banner" class="card" style="display: none; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: 2px solid #764ba2; color: white;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="flex: 1;">
+                        <h2 style="margin: 0 0 10px 0; color: white;">🤖 Claude AI Has New Recommendations!</h2>
+                        <p id="claude-banner-text" style="margin: 0; font-size: 1.1em; opacity: 0.95;">Loading...</p>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn btn-success" onclick="goToClaudeTab()" style="padding: 12px 24px; font-size: 1.1em;">
+                            📊 View Recommendations
+                        </button>
+                        <button class="btn btn-secondary" onclick="dismissClaudeBanner()" style="padding: 12px 20px;">
+                            ✕ Dismiss
+                        </button>
+                    </div>
                 </div>
             </div>
 

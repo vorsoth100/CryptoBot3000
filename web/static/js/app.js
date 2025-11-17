@@ -298,11 +298,23 @@ function displayPositions(positions) {
     html += '<th>P&L</th><th>P&L %</th><th>Stop Loss Value</th><th>Take Profit Value</th><th>Actions</th>';
     html += '</tr></thead><tbody>';
 
+    // Track totals
+    let totalEntryValue = 0;
+    let totalCurrentValue = 0;
+    let totalFees = 0;
+    let totalPnl = 0;
+
     positions.forEach(pos => {
         const pnlClass = pos.net_pnl >= 0 ? 'positive' : 'negative';
         const currentPrice = pos.current_price || pos.entry_price;
         const entryValue = pos.quantity * pos.entry_price;
         const currentValue = pos.quantity * currentPrice;
+
+        // Add to totals
+        totalEntryValue += entryValue;
+        totalCurrentValue += currentValue;
+        totalFees += pos.entry_fee || 0;
+        totalPnl += pos.net_pnl || 0;
 
         // Determine color for current value based on profit/loss
         const valueClass = currentValue > entryValue ? 'positive' : 'negative';
@@ -326,6 +338,22 @@ function displayPositions(positions) {
         html += `<td><button class="btn btn-danger btn-sm" onclick="closePosition('${pos.product_id}')">Close</button></td>`;
         html += '</tr>';
     });
+
+    // Add totals row
+    const totalPnlClass = totalPnl >= 0 ? 'positive' : 'negative';
+    const totalValueClass = totalCurrentValue > totalEntryValue ? 'positive' : 'negative';
+    const totalPnlPct = totalEntryValue > 0 ? ((totalCurrentValue - totalEntryValue - totalFees) / totalEntryValue * 100) : 0;
+
+    html += '<tr style="border-top: 2px solid #38444d; font-weight: bold; background: #1a2332;">';
+    html += '<td colspan="3"><strong>📊 TOTALS:</strong></td>';
+    html += `<td><strong>${formatUSD(totalEntryValue)}</strong></td>`;
+    html += '<td></td>'; // Empty for Current Price column
+    html += `<td class="${totalValueClass}"><strong>${formatUSD(totalCurrentValue)}</strong></td>`;
+    html += `<td>${formatUSD(totalFees)}</td>`;
+    html += `<td class="${totalPnlClass}"><strong>${formatUSD(totalPnl)}</strong></td>`;
+    html += `<td class="${totalPnlClass}"><strong>${totalPnlPct.toFixed(2)}%</strong></td>`;
+    html += '<td colspan="3"></td>'; // Empty for Stop Loss, Take Profit, and Actions columns
+    html += '</tr>';
 
     html += '</tbody></table>';
     container.innerHTML = html;
@@ -762,6 +790,9 @@ function displayTradeRecommendations(analysis) {
         const actions = parsed.recommended_actions || [];
         const buyActions = actions.filter(a => a.action === 'buy');
 
+        // Update the dashboard banner
+        updateClaudeBanner(buyActions.length);
+
         if (buyActions.length === 0) {
             container.innerHTML = '<p class="no-data">No buy recommendations at this time. Market conditions suggest holding cash.</p>';
             return;
@@ -1075,8 +1106,12 @@ async function moveToPastRecommendations(coin, action, message) {
         }
     }
 
+    // Update banner with remaining count
+    const remainingCount = container.querySelectorAll('div[style*="border: 2px solid"]').length;
+    updateClaudeBanner(remainingCount);
+
     // If no recommendations left, show "no data" message
-    if (container.querySelectorAll('div[style*="border: 2px solid"]').length === 0) {
+    if (remainingCount === 0) {
         container.innerHTML = '<p class="no-data">No pending recommendations</p>';
     }
 }
@@ -2474,6 +2509,31 @@ function loadChartForTab(tabName) {
     } else if (tabName === 'claude') {
         loadMarketRegimeChart();
     }
+}
+
+// Claude Recommendation Banner Functions
+function updateClaudeBanner(recommendationCount) {
+    const banner = document.getElementById('claude-banner');
+    const bannerText = document.getElementById('claude-banner-text');
+
+    if (recommendationCount > 0) {
+        banner.style.display = 'block';
+        bannerText.textContent = `${recommendationCount} new trade ${recommendationCount === 1 ? 'recommendation' : 'recommendations'} available from Claude AI analysis.`;
+    } else {
+        banner.style.display = 'none';
+    }
+}
+
+function goToClaudeTab() {
+    // Switch to Claude AI tab
+    switchTab('claude');
+    // Dismiss the banner
+    dismissClaudeBanner();
+}
+
+function dismissClaudeBanner() {
+    const banner = document.getElementById('claude-banner');
+    banner.style.display = 'none';
 }
 
 // Start auto-refresh on page load
