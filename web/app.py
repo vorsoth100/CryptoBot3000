@@ -629,6 +629,49 @@ def test_claude():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@app.route('/api/test/lunarcrush', methods=['POST'])
+def test_lunarcrush():
+    """Test LunarCrush API connection"""
+    try:
+        config_manager = ConfigManager()
+        from src.lunarcrush_client import LunarCrushClient
+
+        client = LunarCrushClient(config_manager.get_all())
+
+        if not client.enabled:
+            return jsonify({
+                "success": False,
+                "error": "LunarCrush is disabled or library not installed"
+            }), 400
+
+        # Test by fetching Bitcoin data
+        btc_data = client.get_coin_data("BTC-USD")
+
+        if btc_data:
+            # Calculate social score
+            social_score = client.calculate_social_score(btc_data)
+
+            return jsonify({
+                "success": True,
+                "message": "LunarCrush API working! ✅",
+                "test_coin": "BTC",
+                "galaxy_score": btc_data.get("galaxy_score"),
+                "alt_rank": btc_data.get("alt_rank"),
+                "sentiment": btc_data.get("sentiment"),
+                "social_volume": btc_data.get("social_volume"),
+                "social_score": social_score.get("total_score"),
+                "details": f"Galaxy Score: {btc_data.get('galaxy_score')}/100, AltRank: #{btc_data.get('alt_rank')}, Sentiment: {btc_data.get('sentiment'):.2f}/5"
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": "Could not fetch data from LunarCrush. API may be down or rate limited."
+            }), 500
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @app.route('/api/debug/reset-account', methods=['POST'])
 def reset_account():
     """Reset account for testing - delete all positions and trades"""
