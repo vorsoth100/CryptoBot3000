@@ -966,8 +966,8 @@ async function approveTrade(coin, positionSizePct, stopLoss, takeProfit) {
 
         if (result.success) {
             alert(`✅ Trade executed successfully!\n\n${result.message}`);
-            // Remove the recommendation from the UI
-            removeRecommendation(coin);
+            // Move the recommendation to past recommendations
+            moveToPastRecommendations(coin, 'approved', `Trade executed: ${result.message}`);
             loadStatus();  // Refresh dashboard
             loadDashboard();
         } else {
@@ -1012,8 +1012,8 @@ async function approveTrade(coin, positionSizePct, stopLoss, takeProfit) {
 
 function rejectTrade(coin) {
     if (confirm(`Reject trade recommendation for ${coin}?`)) {
-        removeRecommendation(coin);
-        alert(`Trade for ${coin} rejected and removed from recommendations`);
+        moveToPastRecommendations(coin, 'rejected', 'User rejected recommendation');
+        alert(`Trade for ${coin} rejected and moved to past recommendations`);
     }
 }
 
@@ -1031,6 +1031,97 @@ function removeRecommendation(coin) {
     // If no recommendations left, show "no data" message
     if (container.querySelectorAll('div[style*="border: 2px solid"]').length === 0) {
         container.innerHTML = '<p class="no-data">No pending recommendations</p>';
+    }
+}
+
+function moveToPastRecommendations(coin, action, message) {
+    // Find the recommendation card
+    const container = document.getElementById('claude-recommendations-container');
+    const cards = container.querySelectorAll('div[style*="border: 2px solid"]');
+
+    let cardHTML = '';
+    cards.forEach(card => {
+        if (card.innerHTML.includes(`<h3 style="margin: 0;">${coin}</h3>`)) {
+            // Get the card HTML and modify it for past recommendations
+            cardHTML = card.outerHTML;
+            card.remove();
+        }
+    });
+
+    if (cardHTML) {
+        // Store in localStorage
+        let pastRecs = JSON.parse(localStorage.getItem('pastRecommendations') || '[]');
+        pastRecs.unshift({
+            coin: coin,
+            action: action,
+            message: message,
+            timestamp: new Date().toLocaleString(),
+            cardHTML: cardHTML
+        });
+        // Keep only last 20
+        pastRecs = pastRecs.slice(0, 20);
+        localStorage.setItem('pastRecommendations', JSON.stringify(pastRecs));
+
+        // Refresh past recommendations display
+        displayPastRecommendations();
+    }
+
+    // If no recommendations left, show "no data" message
+    if (container.querySelectorAll('div[style*="border: 2px solid"]').length === 0) {
+        container.innerHTML = '<p class="no-data">No pending recommendations</p>';
+    }
+}
+
+function togglePastRecommendations() {
+    const container = document.getElementById('past-recommendations-container');
+    const btn = document.getElementById('toggle-past-btn');
+
+    if (container.style.display === 'none') {
+        container.style.display = 'block';
+        btn.textContent = '📜 Hide Past Recommendations';
+        displayPastRecommendations();
+    } else {
+        container.style.display = 'none';
+        btn.textContent = '📜 Show Past Recommendations';
+    }
+}
+
+function displayPastRecommendations() {
+    const container = document.getElementById('past-recommendations-container');
+    const pastRecs = JSON.parse(localStorage.getItem('pastRecommendations') || '[]');
+
+    if (pastRecs.length === 0) {
+        container.innerHTML = '<p class="no-data">No past recommendations yet</p>';
+        return;
+    }
+
+    let html = '';
+    pastRecs.forEach(rec => {
+        const statusColor = rec.action === 'approved' ? '#4caf50' : rec.action === 'rejected' ? '#f44336' : '#ff9800';
+        const statusIcon = rec.action === 'approved' ? '✅' : rec.action === 'rejected' ? '❌' : '⏸️';
+
+        // Modify the card to show it's from the past
+        let modifiedCard = rec.cardHTML;
+        // Remove the action buttons
+        modifiedCard = modifiedCard.replace(/<div style="display: flex; gap: 10px; margin-top: 15px;">.*?<\/div>/s, '');
+        // Add status badge
+        const statusBadge = `<div style="background: ${statusColor}; color: white; padding: 10px; border-radius: 4px; margin-top: 10px; font-weight: bold;">
+            ${statusIcon} ${rec.action.toUpperCase()} - ${rec.timestamp}<br>
+            <span style="font-size: 0.9em; font-weight: normal;">${rec.message}</span>
+        </div>`;
+        modifiedCard = modifiedCard.replace('</div>', statusBadge + '</div>');
+
+        html += modifiedCard;
+    });
+
+    html += `<button class="btn btn-danger btn-sm" onclick="clearPastRecommendations()" style="margin-top: 15px;">🗑️ Clear History</button>`;
+    container.innerHTML = html;
+}
+
+function clearPastRecommendations() {
+    if (confirm('Clear all past recommendations history?')) {
+        localStorage.removeItem('pastRecommendations');
+        displayPastRecommendations();
     }
 }
 

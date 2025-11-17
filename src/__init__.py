@@ -3,5 +3,5 @@ CryptoBot - Automated Cryptocurrency Trading Bot
 For Coinbase Advanced Trade API
 """
 
-__version__ = "1.14.4"
+__version__ = "1.14.5"
 __author__ = "CryptoBot Team"
