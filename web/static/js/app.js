@@ -412,6 +412,20 @@ async function loadConfig() {
         document.getElementById('coingecko_enabled').checked = config.coingecko_enabled;
         document.getElementById('news_sentiment_enabled').checked = config.news_sentiment_enabled;
 
+        // Telegram configuration
+        document.getElementById('telegram_enabled').checked = config.telegram_enabled || false;
+        document.getElementById('telegram_bot_token').value = config.telegram_bot_token || '';
+        document.getElementById('telegram_chat_id').value = config.telegram_chat_id || '';
+        document.getElementById('telegram_notify_trades').checked = config.telegram_notify_trades !== false;
+        document.getElementById('telegram_notify_claude').checked = config.telegram_notify_claude !== false;
+        document.getElementById('telegram_daily_summary').checked = config.telegram_daily_summary !== false;
+
+        // TradingView webhook configuration
+        document.getElementById('tradingview_webhook_enabled').checked = config.tradingview_webhook_enabled || false;
+        document.getElementById('tradingview_webhook_secret').value = config.tradingview_webhook_secret || '';
+        document.getElementById('tradingview_auto_trade').checked = config.tradingview_auto_trade || false;
+        document.getElementById('tradingview_require_confirmation').checked = config.tradingview_require_confirmation !== false;
+
     } catch (error) {
         console.error('Error loading config:', error);
     }
@@ -434,7 +448,21 @@ async function saveConfig() {
             claude_analysis_mode: document.getElementById('claude_analysis_mode').value,
             claude_confidence_threshold: parseInt(document.getElementById('claude_confidence_threshold').value),
             coingecko_enabled: document.getElementById('coingecko_enabled').checked,
-            news_sentiment_enabled: document.getElementById('news_sentiment_enabled').checked
+            news_sentiment_enabled: document.getElementById('news_sentiment_enabled').checked,
+
+            // Telegram configuration
+            telegram_enabled: document.getElementById('telegram_enabled').checked,
+            telegram_bot_token: document.getElementById('telegram_bot_token').value,
+            telegram_chat_id: document.getElementById('telegram_chat_id').value,
+            telegram_notify_trades: document.getElementById('telegram_notify_trades').checked,
+            telegram_notify_claude: document.getElementById('telegram_notify_claude').checked,
+            telegram_daily_summary: document.getElementById('telegram_daily_summary').checked,
+
+            // TradingView webhook configuration
+            tradingview_webhook_enabled: document.getElementById('tradingview_webhook_enabled').checked,
+            tradingview_webhook_secret: document.getElementById('tradingview_webhook_secret').value,
+            tradingview_auto_trade: document.getElementById('tradingview_auto_trade').checked,
+            tradingview_require_confirmation: document.getElementById('tradingview_require_confirmation').checked
         };
 
         const response = await fetch('/api/config', {

@@ -122,6 +122,23 @@ class ConfigManager:
         "coingecko_sentiment_boost": 3,      # Score boost for positive sentiment (>70%)
         "coingecko_social_boost": 2,         # Score boost for high social activity
 
+        # Telegram Bot Integration
+        "telegram_enabled": False,           # Enable Telegram notifications and bot commands
+        "telegram_bot_token": "",            # Get from @BotFather on Telegram
+        "telegram_chat_id": "",              # Your Telegram chat ID
+        "telegram_notify_trades": True,      # Notify on trade entries/exits
+        "telegram_notify_stop_loss": True,   # Notify on stop loss hits
+        "telegram_notify_take_profit": True, # Notify on take profit hits
+        "telegram_notify_claude": True,      # Notify on Claude analysis
+        "telegram_notify_errors": True,      # Notify on errors
+        "telegram_daily_summary": True,      # Send daily performance summary
+
+        # TradingView Webhook Integration
+        "tradingview_webhook_enabled": False,    # Enable TradingView webhook signals
+        "tradingview_webhook_secret": "",        # Secret key for webhook authentication
+        "tradingview_auto_trade": False,         # Automatically execute TradingView signals
+        "tradingview_require_confirmation": True, # Require signal confirmation with indicators
+
         # Notifications
         "email_enabled": False,
         "email_address": "",

@@ -252,6 +252,76 @@
                         <span class="help-text">Enable news sentiment analysis (WARNING: free tier has strict rate limits)</span>
                     </div>
 
+                    <h3 style="margin-top: 30px; margin-bottom: 15px; border-bottom: 2px solid #38444d; padding-bottom: 10px;">🤖 Telegram Bot Integration</h3>
+
+                    <div class="form-group">
+                        <label>Enable Telegram Notifications</label>
+                        <input type="checkbox" id="telegram_enabled" name="telegram_enabled">
+                        <span class="help-text">Receive notifications and control bot via Telegram</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Telegram Bot Token</label>
+                        <input type="text" id="telegram_bot_token" name="telegram_bot_token" placeholder="Get from @BotFather">
+                        <span class="help-text">Create bot with @BotFather on Telegram to get token</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Telegram Chat ID</label>
+                        <input type="text" id="telegram_chat_id" name="telegram_chat_id" placeholder="Your chat ID">
+                        <span class="help-text">Message your bot, then visit https://api.telegram.org/bot{YOUR_TOKEN}/getUpdates</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Notify on Trades</label>
+                        <input type="checkbox" id="telegram_notify_trades" name="telegram_notify_trades">
+                        <span class="help-text">Send notification for trade entries and exits</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Notify on Claude Analysis</label>
+                        <input type="checkbox" id="telegram_notify_claude" name="telegram_notify_claude">
+                        <span class="help-text">Send Claude AI analysis summaries</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Send Daily Summary</label>
+                        <input type="checkbox" id="telegram_daily_summary" name="telegram_daily_summary">
+                        <span class="help-text">Daily performance summary at end of day</span>
+                    </div>
+
+                    <h3 style="margin-top: 30px; margin-bottom: 15px; border-bottom: 2px solid #38444d; padding-bottom: 10px;">📊 TradingView Webhook Integration</h3>
+
+                    <div class="form-group">
+                        <label>Enable TradingView Webhooks</label>
+                        <input type="checkbox" id="tradingview_webhook_enabled" name="tradingview_webhook_enabled">
+                        <span class="help-text">Accept trading signals from TradingView alerts</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Webhook Secret Key</label>
+                        <input type="text" id="tradingview_webhook_secret" name="tradingview_webhook_secret" placeholder="Generate a secure random string">
+                        <span class="help-text">Secret key for webhook authentication (keep this private!)</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Auto-Execute Signals</label>
+                        <input type="checkbox" id="tradingview_auto_trade" name="tradingview_auto_trade">
+                        <span class="help-text">⚠️ Automatically execute TradingView signals (disable to log only)</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Require Technical Confirmation</label>
+                        <input type="checkbox" id="tradingview_require_confirmation" name="tradingview_require_confirmation">
+                        <span class="help-text">Reject signals that conflict with RSI/MACD indicators</span>
+                    </div>
+
+                    <div class="form-group" style="background: #1a2332; padding: 15px; border-radius: 8px; margin-top: 15px;">
+                        <label style="font-weight: bold;">Webhook URL:</label>
+                        <input type="text" id="webhook_url_display" readonly value="http://YOUR_IP:8779/api/tradingview/webhook" style="background: #0d1117; color: #58a6ff;">
+                        <span class="help-text">Use this URL in TradingView alert webhook configuration</span>
+                    </div>
+
                     <button type="button" class="btn btn-success" onclick="saveConfig()">Save Configuration</button>
                     <button type="button" class="btn btn-secondary" onclick="loadConfig()">Reload</button>
                 </form>

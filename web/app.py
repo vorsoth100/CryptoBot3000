@@ -902,6 +902,184 @@ def main():
     socketio.run(app, host='0.0.0.0', port=8779, debug=False, allow_unsafe_werkzeug=True)
 
 
+@app.route('/api/tradingview/webhook', methods=['POST'])
+def tradingview_webhook():
+    """
+    Receive TradingView webhook alerts and execute trades
+
+    Expected JSON payload:
+    {
+        "secret": "your_webhook_secret",
+        "action": "buy" or "sell",
+        "symbol": "BTC-USD",
+        "price": 50000.00,
+        "size_usd": 150.00 (optional),
+        "message": "Signal details" (optional)
+    }
+    """
+    if not bot:
+        return jsonify({"success": False, "error": "Bot not initialized"}), 400
+
+    try:
+        # Verify webhook is enabled
+        if not bot.config.get("tradingview_webhook_enabled", False):
+            return jsonify({"success": False, "error": "TradingView webhooks are disabled"}), 403
+
+        # Get request data
+        data = request.json
+        if not data:
+            return jsonify({"success": False, "error": "No JSON data received"}), 400
+
+        # Verify secret
+        webhook_secret = bot.config.get("tradingview_webhook_secret", "")
+        if not webhook_secret:
+            return jsonify({"success": False, "error": "Webhook secret not configured"}), 403
+
+        provided_secret = data.get("secret", "")
+        if provided_secret != webhook_secret:
+            logging.warning(f"TradingView webhook authentication failed from {request.remote_addr}")
+            return jsonify({"success": False, "error": "Invalid webhook secret"}), 401
+
+        # Extract signal data
+        action = data.get("action", "").lower()
+        symbol = data.get("symbol", "")
+        price = data.get("price")
+        size_usd = data.get("size_usd")
+        message = data.get("message", "")
+
+        # Validate required fields
+        if not action or not symbol:
+            return jsonify({"success": False, "error": "Missing required fields: action, symbol"}), 400
+
+        if action not in ["buy", "sell"]:
+            return jsonify({"success": False, "error": "Action must be 'buy' or 'sell'"}), 400
+
+        # Log received signal
+        logging.info(f"TradingView webhook: {action} {symbol} @ {price} - {message}")
+
+        # Check if auto-trade is enabled
+        auto_trade = bot.config.get("tradingview_auto_trade", False)
+        if not auto_trade:
+            # Log signal but don't execute
+            logging.info("TradingView signal received but auto-trade is disabled")
+            return jsonify({
+                "success": True,
+                "message": "Signal received but auto-trade is disabled",
+                "action": action,
+                "symbol": symbol,
+                "executed": False
+            })
+
+        # Optional: Require confirmation with technical indicators
+        if bot.config.get("tradingview_require_confirmation", True):
+            # Get current market data
+            df = bot.data_collector.get_historical_candles(symbol, granularity="ONE_HOUR", days=7)
+            if df is not None and not df.empty:
+                df = bot.signal_generator.generate_all_indicators(df)
+
+                # Check if indicators confirm the signal
+                latest = df.iloc[-1]
+                rsi = latest.get('rsi_14')
+                macd = latest.get('macd')
+                macd_signal = latest.get('macd_signal')
+
+                if action == "buy":
+                    # Buy confirmation: RSI not overbought, MACD bullish
+                    if rsi and rsi > 70:
+                        return jsonify({
+                            "success": False,
+                            "message": "Buy signal rejected: RSI overbought",
+                            "rsi": rsi,
+                            "executed": False
+                        })
+                    if macd and macd_signal and macd < macd_signal:
+                        return jsonify({
+                            "success": False,
+                            "message": "Buy signal rejected: MACD bearish",
+                            "executed": False
+                        })
+                elif action == "sell":
+                    # Sell confirmation: RSI not oversold
+                    if rsi and rsi < 30:
+                        return jsonify({
+                            "success": False,
+                            "message": "Sell signal rejected: RSI oversold",
+                            "rsi": rsi,
+                            "executed": False
+                        })
+
+        # Execute the trade
+        if action == "buy":
+            # Get current price
+            current_price = bot.data_collector.get_current_price(symbol)
+            if not current_price:
+                return jsonify({"success": False, "error": "Could not get current price"}), 400
+
+            # Use provided size or default to min trade size
+            trade_size = size_usd if size_usd else bot.config.get("min_trade_usd", 150.0)
+
+            # Calculate quantity
+            quantity = trade_size / current_price
+
+            # Open position
+            success, msg, details = bot._open_position(
+                symbol,
+                quantity,
+                current_price,
+                f"TradingView: {message}" if message else "TradingView signal"
+            )
+
+            return jsonify({
+                "success": success,
+                "message": msg,
+                "details": details,
+                "action": "buy",
+                "symbol": symbol,
+                "price": current_price,
+                "quantity": quantity,
+                "executed": success
+            })
+
+        elif action == "sell":
+            # Close position if we have one
+            positions = bot.risk_manager.get_all_positions()
+            position = next((p for p in positions if p['product_id'] == symbol), None)
+
+            if not position:
+                return jsonify({
+                    "success": False,
+                    "message": f"No open position for {symbol}",
+                    "executed": False
+                })
+
+            # Close the position
+            current_price = bot.data_collector.get_current_price(symbol)
+            if not current_price:
+                return jsonify({"success": False, "error": "Could not get current price"}), 400
+
+            success, msg, details = bot._close_position(
+                symbol,
+                current_price,
+                f"TradingView: {message}" if message else "TradingView signal"
+            )
+
+            return jsonify({
+                "success": success,
+                "message": msg,
+                "details": details,
+                "action": "sell",
+                "symbol": symbol,
+                "price": current_price,
+                "executed": success
+            })
+
+    except Exception as e:
+        import traceback
+        logging.error(f"TradingView webhook error: {e}")
+        logging.error(traceback.format_exc())
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @app.route('/api/charts/position-history/<product_id>', methods=['GET'])
 def get_position_history(product_id):
     """Get 7-day price history for an open position"""
