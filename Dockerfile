@@ -36,7 +36,8 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir numpy && \
     TA_LIBRARY_PATH=/usr/lib TA_INCLUDE_PATH=/usr/include pip install --no-cache-dir TA-Lib && \
-    pip install --no-cache-dir -r requirements.txt
+    grep -v "^numpy" requirements.txt | grep -v "^TA-Lib" > requirements_filtered.txt && \
+    pip install --no-cache-dir -r requirements_filtered.txt
 
 # Copy application
 COPY . .
