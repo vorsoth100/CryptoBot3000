@@ -10,7 +10,6 @@ import numpy as np
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 from anthropic import Anthropic
-from src.lunarcrush_client import LunarCrushClient
 
 
 def convert_numpy_types(obj: Any) -> Any:
@@ -68,9 +67,6 @@ class ClaudeAnalyst:
                 self.client = None
 
         self.model = config.get("claude_model", "claude-sonnet-4-5-20250929")
-
-        # Initialize LunarCrush client for social sentiment
-        self.lunarcrush = LunarCrushClient(config)
 
     def analyze_market(self, market_context: Dict) -> Optional[Dict]:
         """
@@ -185,11 +181,6 @@ Note: Each screener result includes technical indicators (RSI, MACD, Bollinger B
 **BTC DOMINANCE:** {clean_context.get('btc_dominance', 'N/A')}%
 **TRENDING COINS (CoinGecko):** {', '.join(clean_context.get('trending_coins', [])) if clean_context.get('trending_coins') else 'N/A'}
 
-**LUNARCRUSH SOCIAL SENTIMENT:**
-{json.dumps(clean_context.get('lunarcrush_data', {}), indent=2)}
-
-Note: LunarCrush Galaxy Score (0-100) combines price performance, social sentiment, and relative activity. AltRank shows overall coin ranking (lower is better). High social volume + positive sentiment = strong momentum signal.
-
 **NEWS SENTIMENT (Last 24h):**
 {clean_context.get('market_news_summary', 'No news data available')}
 
@@ -241,19 +232,12 @@ Provide a comprehensive analysis in JSON format with:
 
 **DECISION-MAKING FRAMEWORK:**
 1. **SCAN SCREENER RESULTS** - Look for coins with high scores and momentum indicators
-2. **CHECK LUNARCRUSH SOCIAL SENTIMENT** - Galaxy Score >60 + high social volume = strong momentum
-3. **CHECK NEWS SENTIMENT** - Avoid coins with negative news (<-30%), favor coins with positive catalysts (>+50%)
-4. **IDENTIFY HOT COINS** - Volume spikes + positive price action + not overbought + positive social/news sentiment
-5. **CONVICTION THRESHOLD** - Only recommend trades with >{self.config.get('claude_confidence_threshold', 80)}% conviction
-6. **POSITION SIZING** - Suggest 15-25% of capital per trade (higher for high conviction + positive sentiment)
-7. **PROFIT TARGETS** - Set realistic targets: 10% (TP1), 20% (TP2), 30% (TP3)
-8. **RISK MANAGEMENT** - Always set stop loss at 6% below entry
-
-**LUNARCRUSH SOCIAL SENTIMENT GUIDELINES:**
-- STRONG BUY signals: Galaxy Score >70 + AltRank <50 + High social volume + Positive sentiment
-- FAVORABLE: Galaxy Score 60-70 + Growing social activity
-- NEUTRAL: Galaxy Score 50-60 + Average social metrics
-- AVOID: Galaxy Score <50 OR declining social volume (loss of interest)
+2. **CHECK NEWS SENTIMENT** - Avoid coins with negative news (<-30%), favor coins with positive catalysts (>+50%)
+3. **IDENTIFY HOT COINS** - Volume spikes + positive price action + not overbought + positive news sentiment
+4. **CONVICTION THRESHOLD** - Only recommend trades with >{self.config.get('claude_confidence_threshold', 80)}% conviction
+5. **POSITION SIZING** - Suggest 15-25% of capital per trade (higher for high conviction + positive sentiment)
+6. **PROFIT TARGETS** - Set realistic targets: 10% (TP1), 20% (TP2), 30% (TP3)
+7. **RISK MANAGEMENT** - Always set stop loss at 6% below entry
 
 **NEWS SENTIMENT GUIDELINES:**
 - AVOID coins with sentiment < -30% (negative news risk)

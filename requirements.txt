@@ -12,4 +12,3 @@ python-socketio==5.10.0
 PyJWT==2.8.0
 cryptography==41.0.7
 python-telegram-bot==21.0
-lunarcrush==2.0.5

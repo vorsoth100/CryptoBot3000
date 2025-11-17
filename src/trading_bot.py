@@ -468,28 +468,6 @@ class TradingBot:
             except Exception as e:
                 self.logger.error(f"Error fetching trending coins: {e}")
 
-        # Get LunarCrush social sentiment for top screener results
-        lunarcrush_data = {}
-        if self.config.get("lunarcrush_enabled", True):
-            try:
-                # Get social sentiment for top 5 screener results
-                for opp in screener_results[:5]:
-                    symbol = opp["product_id"]  # e.g., "BTC-USD"
-                    coin_data = self.claude_analyst.lunarcrush.get_coin_data(symbol)
-                    if coin_data:
-                        # Calculate social score
-                        social_score = self.claude_analyst.lunarcrush.calculate_social_score(coin_data)
-                        lunarcrush_data[symbol] = {
-                            "galaxy_score": coin_data.get("galaxy_score"),
-                            "alt_rank": coin_data.get("alt_rank"),
-                            "sentiment": coin_data.get("sentiment"),
-                            "social_volume": coin_data.get("social_volume"),
-                            "social_score_total": social_score.get("total_score"),
-                            "social_score_breakdown": social_score.get("breakdown")
-                        }
-            except Exception as e:
-                self.logger.error(f"Error fetching LunarCrush data: {e}")
-
         return {
             "portfolio": {
                 "balance_usd": balance,
@@ -507,7 +485,6 @@ class TradingBot:
             "fear_greed": fear_greed,
             "btc_dominance": btc_dominance,
             "trending_coins": trending_coins,
-            "lunarcrush_data": lunarcrush_data,
             "news_sentiment": news_sentiment_data,
             "market_news_summary": market_news_summary,
             "recent_trades": recent_trades,

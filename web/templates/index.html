@@ -265,12 +265,6 @@
                     </div>
 
                     <div class="form-group">
-                        <label>LunarCrush Social Sentiment</label>
-                        <input type="checkbox" id="lunarcrush_enabled" name="lunarcrush_enabled">
-                        <span class="help-text">✨ NEW! Enable social sentiment analysis from LunarCrush (free, no API key required)</span>
-                    </div>
-
-                    <div class="form-group">
                         <label>News Sentiment (Crypto Panic)</label>
                         <input type="checkbox" id="news_sentiment_enabled" name="news_sentiment_enabled">
                         <span class="help-text">Enable news sentiment analysis (WARNING: free tier has strict rate limits)</span>
@@ -584,7 +578,6 @@
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
                     <button class="btn btn-primary" onclick="testCoinbase()">Test Coinbase API</button>
                     <button class="btn btn-primary" onclick="testClaude()">Test Claude API</button>
-                    <button class="btn btn-primary" onclick="testLunarCrush()">Test LunarCrush API</button>
                     <button class="btn btn-primary" onclick="testCoinGecko()">Test CoinGecko API</button>
                     <button class="btn btn-primary" onclick="testNewsSentiment()">Test News Sentiment API</button>
                 </div>

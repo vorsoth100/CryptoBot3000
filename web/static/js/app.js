@@ -439,7 +439,6 @@ async function loadConfig() {
         document.getElementById('claude_confidence_threshold').value = config.claude_confidence_threshold;
         document.getElementById('coingecko_enabled').checked = config.coingecko_enabled;
         document.getElementById('news_sentiment_enabled').checked = config.news_sentiment_enabled;
-        document.getElementById('lunarcrush_enabled').checked = config.lunarcrush_enabled !== false;
 
         // Telegram configuration
         document.getElementById('telegram_enabled').checked = config.telegram_enabled || false;
@@ -478,7 +477,6 @@ async function saveConfig() {
             claude_confidence_threshold: parseInt(document.getElementById('claude_confidence_threshold').value),
             coingecko_enabled: document.getElementById('coingecko_enabled').checked,
             news_sentiment_enabled: document.getElementById('news_sentiment_enabled').checked,
-            lunarcrush_enabled: document.getElementById('lunarcrush_enabled').checked,
 
             // Telegram configuration
             telegram_enabled: document.getElementById('telegram_enabled').checked,
@@ -1466,34 +1464,6 @@ async function testClaude() {
 
         if (result.success) {
             container.innerHTML = `<p class="test-success">✓ ${result.message}<br>Model: ${result.model}</p>`;
-        } else {
-            container.innerHTML = `<p class="test-error">✗ ${result.error}</p>`;
-        }
-
-    } catch (error) {
-        document.getElementById('test-results').innerHTML = `<p class="test-error">✗ ${error.message}</p>`;
-    }
-}
-
-async function testLunarCrush() {
-    try {
-        const container = document.getElementById('test-results');
-        container.innerHTML = '<p style="color: #ff9800;">⏳ Testing LunarCrush API...</p>';
-
-        const response = await fetch('/api/test/lunarcrush', {method: 'POST'});
-        const result = await response.json();
-
-        if (result.success) {
-            let html = `<p class="test-success">✓ ${result.message}</p>`;
-            html += `<div style="margin-top: 10px; padding: 10px; background: #0d1117; border-radius: 4px; border: 1px solid #38444d;">`;
-            html += `<strong>Test Results for ${result.test_coin}:</strong><br>`;
-            html += `• Galaxy Score: <strong>${result.galaxy_score || 'N/A'}</strong>/100<br>`;
-            html += `• AltRank: <strong>#${result.alt_rank || 'N/A'}</strong><br>`;
-            html += `• Sentiment: <strong>${result.sentiment ? result.sentiment.toFixed(2) : 'N/A'}</strong>/5<br>`;
-            html += `• Social Volume: <strong>${result.social_volume ? result.social_volume.toLocaleString() : 'N/A'}</strong> mentions<br>`;
-            html += `• Social Score: <strong>${result.social_score ? result.social_score.toFixed(2) : 'N/A'}</strong> points<br>`;
-            html += `</div>`;
-            container.innerHTML = html;
         } else {
             container.innerHTML = `<p class="test-error">✗ ${result.error}</p>`;
         }
