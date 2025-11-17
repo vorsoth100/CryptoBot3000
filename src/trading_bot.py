@@ -22,6 +22,7 @@ from src.performance_tracker import PerformanceTracker
 from src.claude_analyst import ClaudeAnalyst
 from src.news_sentiment import NewsSentiment
 from src.coingecko_data import CoinGeckoCollector
+from src.telegram_bot import TelegramNotifier
 from src.utils import setup_logging
 
 
@@ -69,6 +70,7 @@ class TradingBot:
         self.risk_manager = RiskManager(self.config, self.news_sentiment)
         self.performance_tracker = PerformanceTracker(self.config)
         self.claude_analyst = ClaudeAnalyst(self.config)
+        self.telegram = TelegramNotifier(self.config)
 
         # Timezone for timestamps
         self.timezone = pytz.timezone('US/Eastern')
@@ -101,6 +103,9 @@ class TradingBot:
             self.logger.info("Bot stopped by user")
         except Exception as e:
             self.logger.error(f"Fatal error in main loop: {e}", exc_info=True)
+            # Send error notification
+            if self.telegram and self.config.get("telegram_notify_errors", True):
+                self.telegram.notify_error(f"Fatal error in main loop: {str(e)}")
         finally:
             self.stop()
 
@@ -245,6 +250,36 @@ class TradingBot:
                     "notes": "DRY RUN" if self.dry_run else "LIVE"
                 })
 
+                # Send Telegram notification
+                if self.telegram and self.config.get("telegram_notify_trades", True):
+                    self.telegram.notify_trade_exit(
+                        symbol=product_id,
+                        side="SELL",
+                        entry_price=pnl_details['entry_price'],
+                        exit_price=current_price,
+                        pnl=pnl_details['net_pnl'],
+                        pnl_pct=pnl_details['pnl_pct'],
+                        reason=reason
+                    )
+
+                # Send specific stop loss or take profit notification
+                if "stop loss" in reason.lower() and self.config.get("telegram_notify_stop_loss", True):
+                    if self.telegram:
+                        self.telegram.notify_stop_loss(
+                            symbol=product_id,
+                            entry_price=pnl_details['entry_price'],
+                            stop_price=current_price,
+                            loss=pnl_details['net_pnl']
+                        )
+                elif "take profit" in reason.lower() and self.config.get("telegram_notify_take_profit", True):
+                    if self.telegram:
+                        self.telegram.notify_take_profit(
+                            symbol=product_id,
+                            entry_price=pnl_details['entry_price'],
+                            target_price=current_price,
+                            profit=pnl_details['net_pnl']
+                        )
+
         except Exception as e:
             self.logger.error(f"Error closing position {product_id}: {e}")
 
@@ -312,6 +347,17 @@ class TradingBot:
             formatted = self.claude_analyst.format_analysis_for_display(analysis)
             self.logger.info(f"\n{formatted}")
 
+            # Send Telegram notification
+            if self.telegram and self.config.get("telegram_notify_claude", True):
+                summary = analysis.get("summary", "Market analysis completed")
+                top_picks = []
+                if "recommended_actions" in analysis:
+                    top_picks = [
+                        f"{rec.get('coin', 'Unknown')} - {rec.get('action', 'N/A')}"
+                        for rec in analysis["recommended_actions"][:3]
+                    ]
+                self.telegram.notify_claude_analysis(summary, top_picks)
+
             # Process recommendations
             if "recommended_actions" in analysis:
                 for recommendation in analysis["recommended_actions"]:
@@ -321,6 +367,9 @@ class TradingBot:
 
         except Exception as e:
             self.logger.error(f"Error running Claude analysis: {e}")
+            # Send error notification
+            if self.telegram and self.config.get("telegram_notify_errors", True):
+                self.telegram.notify_error(f"Claude analysis error: {str(e)}")
 
     def _build_market_context(self) -> Dict:
         """Build market context for Claude analysis"""
@@ -587,6 +636,17 @@ class TradingBot:
             })
 
             self.logger.info(f"✓ Opened position: {quantity:.6f} {product_id} @ ${entry_price:.2f} ({reason})")
+
+            # Send Telegram notification
+            if self.telegram and self.config.get("telegram_notify_trades", True):
+                self.telegram.notify_trade_entry(
+                    symbol=product_id,
+                    side="BUY",
+                    price=entry_price,
+                    size=quantity,
+                    reason=reason
+                )
+
             success_msg = f"Opened {quantity:.6f} {product_id} at ${entry_price:.2f} (${position_size_usd:.2f})"
             return True, success_msg, {"quantity": quantity, "entry_price": entry_price, "size_usd": position_size_usd}
 
