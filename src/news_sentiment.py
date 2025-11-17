@@ -41,7 +41,7 @@ class NewsSentiment:
         # Failure tracking to prevent retry storms
         self.last_failure_time = None
         self.failure_count = 0
-        self.backoff_minutes = 15  # Wait 15 minutes after failures (Crypto Panic free tier limit)
+        self.backoff_minutes = 60  # Wait 60 minutes after failures (conservative for Crypto Panic free tier)
 
     def _is_cache_valid(self, key: str) -> bool:
         """Check if cached data is still valid"""

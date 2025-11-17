@@ -112,7 +112,7 @@ class ConfigManager:
         "cryptopanic_api_key": "free",  # Use 'free' for public tier, or add your API key
         "news_sentiment_block_threshold": -30,  # Block trades if sentiment below this
         "news_sentiment_boost_threshold": 50,   # Boost score if sentiment above this
-        "news_sentiment_cache_minutes": 30,     # Cache news for 30 minutes
+        "news_sentiment_cache_minutes": 120,    # Cache news for 2 hours (reduced API calls from 48/day to 12/day)
         "news_sentiment_lookback_hours": 24,    # Analyze last 24 hours of news
 
         # CoinGecko Data (Free tier - no API key required)
