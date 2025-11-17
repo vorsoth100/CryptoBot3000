@@ -772,7 +772,7 @@ function displayTradeRecommendations(analysis) {
             const convictionColor = rec.conviction >= 80 ? '#4caf50' : rec.conviction >= 60 ? '#ff9800' : '#f44336';
             const autoExecute = rec.conviction >= 80;
 
-            html += `<div style="border: 2px solid ${convictionColor}; padding: 15px; margin: 10px 0; border-radius: 8px; background: #fafafa;">`;
+            html += `<div style="border: 2px solid ${convictionColor}; padding: 15px; margin: 10px 0; border-radius: 8px; background: #1a2332;">`;
             html += `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">`;
             html += `<h3 style="margin: 0;">${rec.coin}</h3>`;
             html += `<span style="background: ${convictionColor}; color: white; padding: 5px 15px; border-radius: 20px; font-weight: bold;">${rec.conviction}% Conviction</span>`;
@@ -795,10 +795,14 @@ function displayTradeRecommendations(analysis) {
             }
             html += `</p>`;
             html += `<p><strong>Position Size:</strong> ${(rec.position_size_pct * 100).toFixed(0)}% ($${(rec.position_size_pct * 600).toFixed(2)})</p>`;
-            html += `<p style="background: #e3f2fd; padding: 10px; border-radius: 4px; margin: 10px 0;"><strong>Reasoning:</strong> ${rec.reasoning}</p>`;
+            html += `<p style="background: #0d1117; padding: 10px; border-radius: 4px; margin: 10px 0; border: 1px solid #38444d;"><strong>Reasoning:</strong> ${rec.reasoning}</p>`;
 
             html += `<div style="display: flex; gap: 10px; margin-top: 15px;">`;
-            html += `<button class="btn btn-success" onclick="approveTrade('${rec.coin}', ${rec.position_size_pct}, ${rec.stop_loss}, ${rec.take_profit[0]})">✅ Approve & Execute</button>`;
+            if (autoExecute) {
+                html += `<button class="btn btn-success" onclick="approveTrade('${rec.coin}', ${rec.position_size_pct}, ${rec.stop_loss}, ${rec.take_profit[0]})">✅ Execute Trade (High Conviction)</button>`;
+            } else {
+                html += `<button class="btn btn-warning" onclick="approveTrade('${rec.coin}', ${rec.position_size_pct}, ${rec.stop_loss}, ${rec.take_profit[0]})">⚠️ Execute (Moderate - Review First)</button>`;
+            }
             html += `<button class="btn btn-danger" onclick="rejectTrade('${rec.coin}')">❌ Reject</button>`;
             html += `</div>`;
             html += `</div>`;
@@ -962,6 +966,8 @@ async function approveTrade(coin, positionSizePct, stopLoss, takeProfit) {
 
         if (result.success) {
             alert(`✅ Trade executed successfully!\n\n${result.message}`);
+            // Remove the recommendation from the UI
+            removeRecommendation(coin);
             loadStatus();  // Refresh dashboard
             loadDashboard();
         } else {
@@ -1005,8 +1011,27 @@ async function approveTrade(coin, positionSizePct, stopLoss, takeProfit) {
 }
 
 function rejectTrade(coin) {
-    alert(`Trade for ${coin} rejected`);
-    // Could log this or remove from recommendations
+    if (confirm(`Reject trade recommendation for ${coin}?`)) {
+        removeRecommendation(coin);
+        alert(`Trade for ${coin} rejected and removed from recommendations`);
+    }
+}
+
+function removeRecommendation(coin) {
+    // Find and remove the recommendation card from DOM
+    const container = document.getElementById('claude-recommendations-container');
+    const cards = container.querySelectorAll('div[style*="border: 2px solid"]');
+
+    cards.forEach(card => {
+        if (card.innerHTML.includes(`<h3 style="margin: 0;">${coin}</h3>`)) {
+            card.remove();
+        }
+    });
+
+    // If no recommendations left, show "no data" message
+    if (container.querySelectorAll('div[style*="border: 2px solid"]').length === 0) {
+        container.innerHTML = '<p class="no-data">No pending recommendations</p>';
+    }
 }
 
 async function submitManualTrade() {
