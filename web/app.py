@@ -677,9 +677,9 @@ def test_coingecko():
     """Test CoinGecko API connection"""
     try:
         config_manager = ConfigManager()
-        from src.coingecko_client import CoinGeckoClient
+        from src.coingecko_data import CoinGeckoCollector
 
-        client = CoinGeckoClient(config_manager.get_all())
+        client = CoinGeckoCollector(config_manager.get_all())
 
         if not client.enabled:
             return jsonify({
@@ -723,9 +723,9 @@ def test_news_sentiment():
                 "error": "News Sentiment is disabled in configuration. Enable it first to test."
             }), 400
 
-        from src.news_sentiment import NewsSentimentAnalyzer
+        from src.news_sentiment import NewsSentiment
 
-        analyzer = NewsSentimentAnalyzer(config)
+        analyzer = NewsSentiment(config)
 
         if not analyzer.enabled:
             return jsonify({
