@@ -681,12 +681,6 @@ def test_coingecko():
 
         client = CoinGeckoCollector(config_manager.get_all())
 
-        if not client.enabled:
-            return jsonify({
-                "success": False,
-                "error": "CoinGecko is disabled in configuration"
-            }), 400
-
         # Test by fetching trending coins
         trending = client.get_trending_coins()
 
