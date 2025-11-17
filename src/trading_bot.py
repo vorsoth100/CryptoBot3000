@@ -9,6 +9,7 @@ import logging
 from datetime import datetime, timedelta
 from typing import Dict, Optional, List
 import sys
+import pytz
 
 from src import __version__
 from src.config_manager import ConfigManager
@@ -68,6 +69,9 @@ class TradingBot:
         self.risk_manager = RiskManager(self.config, self.news_sentiment)
         self.performance_tracker = PerformanceTracker(self.config)
         self.claude_analyst = ClaudeAnalyst(self.config)
+
+        # Timezone for timestamps
+        self.timezone = pytz.timezone('US/Eastern')
 
         # Bot state
         self.running = False
@@ -660,7 +664,7 @@ class TradingBot:
             clean_opportunities = convert_numpy_types(opportunities)
 
             result = {
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(self.timezone).isoformat(),
                 "opportunities": clean_opportunities,
                 "count": len(clean_opportunities)
             }
@@ -682,7 +686,7 @@ class TradingBot:
             import os
 
             result = {
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(self.timezone).isoformat(),
                 "analysis": analysis
             }
 
