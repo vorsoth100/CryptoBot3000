@@ -122,6 +122,14 @@ class ConfigManager:
         "coingecko_sentiment_boost": 3,      # Score boost for positive sentiment (>70%)
         "coingecko_social_boost": 2,         # Score boost for high social activity
 
+        # LunarCrush Social Sentiment (Free tier - no API key required for v2)
+        "lunarcrush_enabled": True,          # Enable LunarCrush social sentiment analysis
+        "lunarcrush_cache_minutes": 30,      # Cache social data for 30 minutes
+        "lunarcrush_galaxy_score_min": 50,   # Minimum Galaxy Score for trade consideration (0-100)
+        "lunarcrush_social_volume_boost": 5, # Score boost for high social volume
+        "lunarcrush_sentiment_boost": 3,     # Score boost for positive sentiment
+        "lunarcrush_alt_rank_boost": 4,      # Score boost for top AltRank coins
+
         # Telegram Bot Integration
         "telegram_enabled": False,           # Enable Telegram notifications and bot commands
         "telegram_bot_token": "",            # Get from @BotFather on Telegram
