@@ -36,7 +36,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir numpy && \
     TA_LIBRARY_PATH=/usr/lib TA_INCLUDE_PATH=/usr/include pip install --no-cache-dir TA-Lib && \
-    pip install --no-cache-dir flask==3.0.0 flask-socketio==5.3.5 anthropic==0.40.0 requests==2.31.0 pandas==2.1.4 python-dotenv==1.0.0 pytz==2023.3 python-engineio==4.8.0 python-socketio==5.10.0 PyJWT==2.8.0 cryptography==41.0.7
+    pip install --no-cache-dir -r requirements.txt
 
 # Copy application
 COPY . .
