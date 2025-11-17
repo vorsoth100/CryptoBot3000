@@ -641,7 +641,7 @@ def test_lunarcrush():
         if not client.enabled:
             return jsonify({
                 "success": False,
-                "error": "LunarCrush is disabled or library not installed"
+                "error": "LunarCrush library not installed yet. Please rebuild Docker container to install 'lunarcrush' package from requirements.txt"
             }), 400
 
         # Test by fetching Bitcoin data
@@ -666,6 +666,91 @@ def test_lunarcrush():
             return jsonify({
                 "success": False,
                 "error": "Could not fetch data from LunarCrush. API may be down or rate limited."
+            }), 500
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/test/coingecko', methods=['POST'])
+def test_coingecko():
+    """Test CoinGecko API connection"""
+    try:
+        config_manager = ConfigManager()
+        from src.coingecko_client import CoinGeckoClient
+
+        client = CoinGeckoClient(config_manager.get_all())
+
+        if not client.enabled:
+            return jsonify({
+                "success": False,
+                "error": "CoinGecko is disabled in configuration"
+            }), 400
+
+        # Test by fetching trending coins
+        trending = client.get_trending_coins()
+
+        if trending:
+            trending_list = [f"{coin['symbol'].upper()}" for coin in trending[:5]]
+
+            return jsonify({
+                "success": True,
+                "message": "CoinGecko API working! ✅",
+                "trending_count": len(trending),
+                "top_5_trending": trending_list,
+                "details": f"Found {len(trending)} trending coins. Top 5: {', '.join(trending_list)}"
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": "Could not fetch trending coins from CoinGecko. API may be rate limited."
+            }), 500
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/test/news-sentiment', methods=['POST'])
+def test_news_sentiment():
+    """Test News Sentiment (Crypto Panic) API connection"""
+    try:
+        config_manager = ConfigManager()
+        config = config_manager.get_all()
+
+        if not config.get("news_sentiment_enabled", False):
+            return jsonify({
+                "success": False,
+                "error": "News Sentiment is disabled in configuration. Enable it first to test."
+            }), 400
+
+        from src.news_sentiment import NewsSentimentAnalyzer
+
+        analyzer = NewsSentimentAnalyzer(config)
+
+        if not analyzer.enabled:
+            return jsonify({
+                "success": False,
+                "error": "News Sentiment analyzer is not enabled or initialized"
+            }), 400
+
+        # Test by getting BTC sentiment
+        sentiment = analyzer.get_sentiment("BTC-USD")
+
+        if sentiment:
+            return jsonify({
+                "success": True,
+                "message": "News Sentiment API working! ✅",
+                "test_coin": "BTC",
+                "sentiment_score": sentiment.get("sentiment_score"),
+                "news_count": sentiment.get("news_count"),
+                "trending": sentiment.get("trending", False),
+                "top_headline": sentiment.get("top_headlines", ["N/A"])[0] if sentiment.get("top_headlines") else "N/A",
+                "details": f"Score: {sentiment.get('sentiment_score')}, News: {sentiment.get('news_count')}, Trending: {sentiment.get('trending', False)}"
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": "Could not fetch news sentiment. API may be rate limited (429 errors common on free tier)."
             }), 500
 
     except Exception as e:

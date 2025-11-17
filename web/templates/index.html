@@ -581,9 +581,13 @@
 
             <div class="card">
                 <h2>API Tests</h2>
-                <button class="btn btn-primary" onclick="testCoinbase()">Test Coinbase API</button>
-                <button class="btn btn-primary" onclick="testClaude()">Test Claude API</button>
-                <button class="btn btn-primary" onclick="testLunarCrush()">Test LunarCrush API</button>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+                    <button class="btn btn-primary" onclick="testCoinbase()">Test Coinbase API</button>
+                    <button class="btn btn-primary" onclick="testClaude()">Test Claude API</button>
+                    <button class="btn btn-primary" onclick="testLunarCrush()">Test LunarCrush API</button>
+                    <button class="btn btn-primary" onclick="testCoinGecko()">Test CoinGecko API</button>
+                    <button class="btn btn-primary" onclick="testNewsSentiment()">Test News Sentiment API</button>
+                </div>
                 <div id="test-results"></div>
             </div>
 

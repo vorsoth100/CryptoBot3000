@@ -1501,6 +1501,58 @@ async function testLunarCrush() {
     }
 }
 
+async function testCoinGecko() {
+    try {
+        const container = document.getElementById('test-results');
+        container.innerHTML = '<p style="color: #ff9800;">⏳ Testing CoinGecko API...</p>';
+
+        const response = await fetch('/api/test/coingecko', {method: 'POST'});
+        const result = await response.json();
+
+        if (result.success) {
+            let html = `<p class="test-success">✓ ${result.message}</p>`;
+            html += `<div style="margin-top: 10px; padding: 10px; background: #0d1117; border-radius: 4px; border: 1px solid #38444d;">`;
+            html += `<strong>Trending Coins:</strong><br>`;
+            html += `• Found: <strong>${result.trending_count}</strong> trending coins<br>`;
+            html += `• Top 5: <strong>${result.top_5_trending.join(', ')}</strong><br>`;
+            html += `</div>`;
+            container.innerHTML = html;
+        } else {
+            container.innerHTML = `<p class="test-error">✗ ${result.error}</p>`;
+        }
+
+    } catch (error) {
+        document.getElementById('test-results').innerHTML = `<p class="test-error">✗ ${error.message}</p>`;
+    }
+}
+
+async function testNewsSentiment() {
+    try {
+        const container = document.getElementById('test-results');
+        container.innerHTML = '<p style="color: #ff9800;">⏳ Testing News Sentiment API...</p>';
+
+        const response = await fetch('/api/test/news-sentiment', {method: 'POST'});
+        const result = await response.json();
+
+        if (result.success) {
+            let html = `<p class="test-success">✓ ${result.message}</p>`;
+            html += `<div style="margin-top: 10px; padding: 10px; background: #0d1117; border-radius: 4px; border: 1px solid #38444d;">`;
+            html += `<strong>Test Results for ${result.test_coin}:</strong><br>`;
+            html += `• Sentiment Score: <strong>${result.sentiment_score || 'N/A'}</strong><br>`;
+            html += `• News Count: <strong>${result.news_count || 0}</strong> articles<br>`;
+            html += `• Trending: <strong>${result.trending ? 'Yes' : 'No'}</strong><br>`;
+            html += `• Top Headline: <em>${result.top_headline}</em><br>`;
+            html += `</div>`;
+            container.innerHTML = html;
+        } else {
+            container.innerHTML = `<p class="test-error">✗ ${result.error}</p>`;
+        }
+
+    } catch (error) {
+        document.getElementById('test-results').innerHTML = `<p class="test-error">✗ ${error.message}</p>`;
+    }
+}
+
 async function loadBotLogs() {
     try {
         const response = await fetch('/api/logs/bot');
@@ -2553,8 +2605,13 @@ function updateClaudeBanner(recommendationCount) {
 }
 
 function goToClaudeTab() {
-    // Switch to Claude AI tab
-    switchTab('claude');
+    // Find and click the Claude tab button
+    const tabButtons = document.querySelectorAll('.tab-button');
+    tabButtons.forEach(button => {
+        if (button.getAttribute('data-tab') === 'claude') {
+            button.click();
+        }
+    });
     // Dismiss the banner
     dismissClaudeBanner();
 }
