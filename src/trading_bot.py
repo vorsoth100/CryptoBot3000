@@ -7,7 +7,7 @@ import os
 import time
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 import sys
 
 from src import __version__
