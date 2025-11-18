@@ -222,7 +222,56 @@
                     <div class="form-group">
                         <label>Max Drawdown %</label>
                         <input type="number" id="max_drawdown_pct" name="max_drawdown_pct" step="0.01" min="0" max="1">
+                        <span class="help-text">Maximum portfolio drawdown before halting trading (0.20 = 20%)</span>
                     </div>
+
+                    <div class="form-group">
+                        <label>Max Daily Loss %</label>
+                        <input type="number" id="max_daily_loss_pct" name="max_daily_loss_pct" step="0.01" min="0" max="1">
+                        <span class="help-text">Maximum loss per day before halting trading (0.05 = 5% of capital)</span>
+                    </div>
+
+                    <h3 style="margin-top: 30px; margin-bottom: 15px; border-bottom: 2px solid #38444d; padding-bottom: 10px;">Advanced Risk Management</h3>
+
+                    <div class="form-group">
+                        <label>Trailing Stop Loss</label>
+                        <input type="checkbox" id="trailing_stop_enabled" name="trailing_stop_enabled">
+                        <span class="help-text">Enable trailing stop loss to lock in profits</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Trailing Stop Activation %</label>
+                        <input type="number" id="trailing_stop_activation_pct" name="trailing_stop_activation_pct" step="0.01" min="0" max="1">
+                        <span class="help-text">Profit level to activate trailing stop (0.10 = 10% profit)</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Trailing Stop Distance %</label>
+                        <input type="number" id="trailing_stop_distance_pct" name="trailing_stop_distance_pct" step="0.01" min="0" max="1">
+                        <span class="help-text">Distance below peak price for trailing stop (0.05 = 5%)</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Partial Profit Taking</label>
+                        <input type="checkbox" id="partial_profit_enabled" name="partial_profit_enabled">
+                        <span class="help-text">Take partial profits at multiple levels</span>
+                    </div>
+
+                    <h3 style="margin-top: 30px; margin-bottom: 15px; border-bottom: 2px solid #38444d; padding-bottom: 10px;">Order Execution</h3>
+
+                    <div class="form-group">
+                        <label>Prefer Limit Orders</label>
+                        <input type="checkbox" id="prefer_limit_orders" name="prefer_limit_orders">
+                        <span class="help-text">Use limit orders when possible to reduce fees (0.6% vs 0.8%)</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Limit Order Timeout (minutes)</label>
+                        <input type="number" id="limit_order_timeout_min" name="limit_order_timeout_min" min="1" max="1440">
+                        <span class="help-text">How long to wait for limit order to fill before switching to market order</span>
+                    </div>
+
+                    <h3 style="margin-top: 30px; margin-bottom: 15px; border-bottom: 2px solid #38444d; padding-bottom: 10px;">Fees</h3>
 
                     <div class="form-group">
                         <label>Coinbase Maker Fee %</label>
@@ -242,18 +291,55 @@
                         <span class="help-text">Maximum acceptable fee percentage per trade (e.g., 2.0 = 2%)</span>
                     </div>
 
+                    <h3 style="margin-top: 30px; margin-bottom: 15px; border-bottom: 2px solid #38444d; padding-bottom: 10px;">Claude AI Settings</h3>
+
                     <div class="form-group">
                         <label>Claude Analysis Mode</label>
                         <select id="claude_analysis_mode" name="claude_analysis_mode">
-                            <option value="advisory">Advisory</option>
-                            <option value="semi_autonomous">Semi-Autonomous</option>
-                            <option value="autonomous">Autonomous</option>
+                            <option value="advisory">Advisory (Manual approval)</option>
+                            <option value="semi_autonomous">Semi-Autonomous (Auto-execute >80% confidence)</option>
+                            <option value="autonomous">Autonomous (Auto-execute all)</option>
                         </select>
                     </div>
 
                     <div class="form-group">
-                        <label>Claude Confidence Threshold</label>
+                        <label>Claude Confidence Threshold (%)</label>
                         <input type="number" id="claude_confidence_threshold" name="claude_confidence_threshold" min="0" max="100">
+                        <span class="help-text">Minimum confidence for auto-execution (only applies in semi-autonomous mode)</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Max Trade Suggestions</label>
+                        <input type="number" id="claude_max_trade_suggestions" name="claude_max_trade_suggestions" min="1" max="10">
+                        <span class="help-text">Maximum number of trades Claude can suggest per analysis</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Claude Risk Tolerance</label>
+                        <select id="claude_risk_tolerance" name="claude_risk_tolerance">
+                            <option value="conservative">Conservative</option>
+                            <option value="moderate">Moderate</option>
+                            <option value="aggressive">Aggressive</option>
+                        </select>
+                        <span class="help-text">Influences Claude's trade selection and position sizing</span>
+                    </div>
+
+                    <h3 style="margin-top: 30px; margin-bottom: 15px; border-bottom: 2px solid #38444d; padding-bottom: 10px;">Screener Settings</h3>
+
+                    <div class="form-group">
+                        <label>Screener Mode</label>
+                        <select id="screener_mode" name="screener_mode">
+                            <option value="breakouts">Breakouts (High volume + momentum)</option>
+                            <option value="oversold">Oversold (RSI <30 + volume spike)</option>
+                            <option value="support">Support (Price near support)</option>
+                            <option value="trending">Trending (Strong uptrend)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Max Screener Results</label>
+                        <input type="number" id="screener_max_results" name="screener_max_results" min="1" max="50">
+                        <span class="help-text">Maximum number of opportunities to screen for analysis</span>
                     </div>
 
                     <h3 style="margin-top: 30px; margin-bottom: 15px; border-bottom: 2px solid #38444d; padding-bottom: 10px;">Data Sources</h3>

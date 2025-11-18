@@ -432,11 +432,34 @@ async function loadConfig() {
         document.getElementById('stop_loss_pct').value = config.stop_loss_pct;
         document.getElementById('take_profit_pct').value = config.take_profit_pct;
         document.getElementById('max_drawdown_pct').value = config.max_drawdown_pct;
+        document.getElementById('max_daily_loss_pct').value = config.max_daily_loss_pct || 0.05;
+
+        // Advanced Risk Management
+        document.getElementById('trailing_stop_enabled').checked = config.trailing_stop_enabled !== false;
+        document.getElementById('trailing_stop_activation_pct').value = config.trailing_stop_activation_pct || 0.10;
+        document.getElementById('trailing_stop_distance_pct').value = config.trailing_stop_distance_pct || 0.05;
+        document.getElementById('partial_profit_enabled').checked = config.partial_profit_enabled !== false;
+
+        // Order Execution
+        document.getElementById('prefer_limit_orders').checked = config.prefer_limit_orders !== false;
+        document.getElementById('limit_order_timeout_min').value = config.limit_order_timeout_min || 60;
+
+        // Fees
         document.getElementById('coinbase_maker_fee').value = config.coinbase_maker_fee * 100;  // Convert to percentage
         document.getElementById('coinbase_taker_fee').value = config.coinbase_taker_fee * 100;  // Convert to percentage
         document.getElementById('max_fee_pct').value = config.max_fee_pct * 100;  // Convert decimal to percentage for display
+
+        // Claude AI Settings
         document.getElementById('claude_analysis_mode').value = config.claude_analysis_mode;
         document.getElementById('claude_confidence_threshold').value = config.claude_confidence_threshold;
+        document.getElementById('claude_max_trade_suggestions').value = config.claude_max_trade_suggestions || 3;
+        document.getElementById('claude_risk_tolerance').value = config.claude_risk_tolerance || 'moderate';
+
+        // Screener Settings
+        document.getElementById('screener_mode').value = config.screener_mode || 'breakouts';
+        document.getElementById('screener_max_results').value = config.screener_max_results || 10;
+
+        // Data Sources
         document.getElementById('coingecko_enabled').checked = config.coingecko_enabled;
         document.getElementById('news_sentiment_enabled').checked = config.news_sentiment_enabled;
 
@@ -470,11 +493,34 @@ async function saveConfig() {
             stop_loss_pct: parseFloat(document.getElementById('stop_loss_pct').value),
             take_profit_pct: parseFloat(document.getElementById('take_profit_pct').value),
             max_drawdown_pct: parseFloat(document.getElementById('max_drawdown_pct').value),
+            max_daily_loss_pct: parseFloat(document.getElementById('max_daily_loss_pct').value),
+
+            // Advanced Risk Management
+            trailing_stop_enabled: document.getElementById('trailing_stop_enabled').checked,
+            trailing_stop_activation_pct: parseFloat(document.getElementById('trailing_stop_activation_pct').value),
+            trailing_stop_distance_pct: parseFloat(document.getElementById('trailing_stop_distance_pct').value),
+            partial_profit_enabled: document.getElementById('partial_profit_enabled').checked,
+
+            // Order Execution
+            prefer_limit_orders: document.getElementById('prefer_limit_orders').checked,
+            limit_order_timeout_min: parseInt(document.getElementById('limit_order_timeout_min').value),
+
+            // Fees
             coinbase_maker_fee: parseFloat(document.getElementById('coinbase_maker_fee').value) / 100,  // Convert to decimal
             coinbase_taker_fee: parseFloat(document.getElementById('coinbase_taker_fee').value) / 100,  // Convert to decimal
             max_fee_pct: parseFloat(document.getElementById('max_fee_pct').value) / 100,  // Convert percentage to decimal for storage
+
+            // Claude AI Settings
             claude_analysis_mode: document.getElementById('claude_analysis_mode').value,
             claude_confidence_threshold: parseInt(document.getElementById('claude_confidence_threshold').value),
+            claude_max_trade_suggestions: parseInt(document.getElementById('claude_max_trade_suggestions').value),
+            claude_risk_tolerance: document.getElementById('claude_risk_tolerance').value,
+
+            // Screener Settings
+            screener_mode: document.getElementById('screener_mode').value,
+            screener_max_results: parseInt(document.getElementById('screener_max_results').value),
+
+            // Data Sources
             coingecko_enabled: document.getElementById('coingecko_enabled').checked,
             news_sentiment_enabled: document.getElementById('news_sentiment_enabled').checked,
 
