@@ -389,3 +389,249 @@ class SignalGenerator:
         rsi_signal = self.get_rsi_signal(df)
 
         return (near_support and rsi_signal == 'buy')
+
+    def detect_mean_reversion(self, df: pd.DataFrame) -> Dict:
+        """
+        Detect mean reversion opportunities (bear market strategy)
+
+        Strategy: Buy extreme oversold dips, sell quick bounces
+        Perfect for ranging/bear markets
+
+        Args:
+            df: DataFrame with indicators
+
+        Returns:
+            Dictionary with reversion signal and metrics
+        """
+        if len(df) < 50:
+            return {"signal": "neutral", "score": 0}
+
+        current_close = df['close'].iloc[-1]
+        rsi = df['rsi'].iloc[-1] if 'rsi' in df.columns else 50
+        bb_lower = df['bb_lower'].iloc[-1] if 'bb_lower' in df.columns else current_close
+        bb_middle = df['bb_middle'].iloc[-1] if 'bb_middle' in df.columns else current_close
+        bb_upper = df['bb_upper'].iloc[-1] if 'bb_upper' in df.columns else current_close
+
+        # Calculate distance from Bollinger bands
+        bb_width = bb_upper - bb_lower
+        distance_from_lower = (current_close - bb_lower) / bb_width if bb_width > 0 else 0.5
+        distance_from_upper = (bb_upper - current_close) / bb_width if bb_width > 0 else 0.5
+
+        score = 0
+        signal = "neutral"
+
+        # EXTREME OVERSOLD = BUY SIGNAL (mean reversion up)
+        if rsi < 25 and distance_from_lower < 0.15:  # Very oversold + near lower BB
+            signal = "buy"
+            score = 80
+        elif rsi < 30 and current_close < bb_lower:  # Oversold + below lower BB
+            signal = "buy"
+            score = 60
+        elif rsi < 35 and distance_from_lower < 0.25:  # Mildly oversold + near lower BB
+            signal = "buy"
+            score = 40
+
+        # OVERBOUGHT IN BEAR MARKET = SELL SIGNAL (fade the rally)
+        elif rsi > 65 and distance_from_upper < 0.20:  # Overbought + near upper BB
+            signal = "sell"
+            score = 70
+        elif rsi > 60 and current_close > bb_middle * 1.03:  # Above middle BB in bear market
+            signal = "sell"
+            score = 50
+
+        return {
+            "signal": signal,
+            "score": score,
+            "rsi": rsi,
+            "bb_position": distance_from_lower  # 0 = at lower BB, 1 = at upper BB
+        }
+
+    def detect_scalping_opportunity(self, df: pd.DataFrame) -> Dict:
+        """
+        Detect quick scalping opportunities (1-3% moves)
+
+        Strategy: High volume + momentum shifts for quick in/out
+        Perfect for volatile bear markets
+
+        Args:
+            df: DataFrame with indicators
+
+        Returns:
+            Dictionary with scalping signal and metrics
+        """
+        if len(df) < 20:
+            return {"signal": "neutral", "score": 0}
+
+        current_close = df['close'].iloc[-1]
+        prev_close = df['close'].iloc[-2]
+        rsi = df['rsi'].iloc[-1] if 'rsi' in df.columns else 50
+        macd_hist = df['macd_hist'].iloc[-1] if 'macd_hist' in df.columns else 0
+        macd_hist_prev = df['macd_hist'].iloc[-2] if 'macd_hist' in df.columns else 0
+
+        # Volume spike detection
+        volume_analysis = self.calculate_volume_analysis(df)
+        volume_spike = volume_analysis['is_spike']
+
+        # Price momentum (short-term)
+        price_change_1h = (current_close - prev_close) / prev_close
+        price_change_3h = (current_close - df['close'].iloc[-4]) / df['close'].iloc[-4] if len(df) >= 4 else 0
+
+        # MACD histogram momentum shift
+        macd_turning_up = macd_hist > macd_hist_prev and macd_hist_prev < 0
+        macd_turning_down = macd_hist < macd_hist_prev and macd_hist_prev > 0
+
+        score = 0
+        signal = "neutral"
+
+        # BUY SCALP: Momentum shift + volume
+        if volume_spike and macd_turning_up and rsi < 50:
+            score = 70
+            signal = "buy"
+        elif price_change_1h > 0.01 and volume_spike and rsi < 55:  # 1%+ move with volume
+            score = 60
+            signal = "buy"
+        elif macd_turning_up and rsi < 45:
+            score = 40
+            signal = "buy"
+
+        # SELL SCALP: Quick profit taking
+        elif price_change_3h > 0.025 and rsi > 60:  # 2.5%+ profit + overbought
+            score = 65
+            signal = "sell"
+        elif macd_turning_down and rsi > 55:
+            score = 50
+            signal = "sell"
+
+        return {
+            "signal": signal,
+            "score": score,
+            "volume_spike": volume_spike,
+            "momentum_1h": price_change_1h * 100,
+            "momentum_3h": price_change_3h * 100
+        }
+
+    def detect_range_trading(self, df: pd.DataFrame, periods: int = 50) -> Dict:
+        """
+        Detect range-bound trading opportunities
+
+        Strategy: Buy at support, sell at resistance in consolidation
+        Perfect for sideways/bear markets
+
+        Args:
+            df: DataFrame with price data
+            periods: Lookback period for range detection
+
+        Returns:
+            Dictionary with range trading signal
+        """
+        if len(df) < periods:
+            return {"signal": "neutral", "score": 0, "in_range": False}
+
+        # Calculate range over period
+        high_period = df['high'].iloc[-periods:].max()
+        low_period = df['low'].iloc[-periods:].min()
+        range_size = high_period - low_period
+        current_close = df['close'].iloc[-1]
+
+        # Is price in a range? (low volatility, no clear trend)
+        ma_short = df['ma_short'].iloc[-1] if 'ma_short' in df.columns else current_close
+        ma_long = df['ma_long'].iloc[-1] if 'ma_long' in df.columns else current_close
+        ma_diff_pct = abs(ma_short - ma_long) / ma_long if ma_long > 0 else 1
+
+        in_range = ma_diff_pct < 0.05  # MAs within 5% = ranging market
+
+        if not in_range or range_size == 0:
+            return {"signal": "neutral", "score": 0, "in_range": False}
+
+        # Calculate position in range (0 = bottom, 1 = top)
+        range_position = (current_close - low_period) / range_size
+
+        score = 0
+        signal = "neutral"
+
+        # BUY at bottom of range
+        if range_position < 0.25:  # In bottom 25% of range
+            rsi = df['rsi'].iloc[-1] if 'rsi' in df.columns else 50
+            if rsi < 40:
+                score = 75
+                signal = "buy"
+            else:
+                score = 50
+                signal = "buy"
+
+        # SELL at top of range
+        elif range_position > 0.75:  # In top 25% of range
+            rsi = df['rsi'].iloc[-1] if 'rsi' in df.columns else 50
+            if rsi > 60:
+                score = 75
+                signal = "sell"
+            else:
+                score = 50
+                signal = "sell"
+
+        return {
+            "signal": signal,
+            "score": score,
+            "in_range": True,
+            "range_position": range_position,
+            "support": low_period,
+            "resistance": high_period
+        }
+
+    def detect_dead_cat_bounce(self, df: pd.DataFrame) -> Dict:
+        """
+        Detect bear market rallies (dead cat bounces)
+
+        Strategy: Catch quick bear market bounces with TIGHT stops
+        High risk but can be profitable in strong downtrends
+
+        Args:
+            df: DataFrame with price data
+
+        Returns:
+            Dictionary with bounce signal
+        """
+        if len(df) < 30:
+            return {"signal": "neutral", "score": 0}
+
+        current_close = df['close'].iloc[-1]
+
+        # Identify downtrend (bear market)
+        ma_short = df['ma_short'].iloc[-1] if 'ma_short' in df.columns else current_close
+        ma_long = df['ma_long'].iloc[-1] if 'ma_long' in df.columns else current_close
+        in_downtrend = ma_short < ma_long
+
+        if not in_downtrend:
+            return {"signal": "neutral", "score": 0}
+
+        # Recent sharp drop (creates bounce potential)
+        price_7d_ago = df['close'].iloc[-168] if len(df) >= 168 else df['close'].iloc[0]  # 7 days in 1h candles
+        drop_pct = (current_close - price_7d_ago) / price_7d_ago
+
+        # RSI extreme oversold (bounce imminent)
+        rsi = df['rsi'].iloc[-1] if 'rsi' in df.columns else 50
+
+        # Volume spike (capitulation)
+        volume_analysis = self.calculate_volume_analysis(df)
+
+        score = 0
+        signal = "neutral"
+
+        # Perfect storm for bounce: downtrend + oversold + volume spike + big drop
+        if drop_pct < -0.15 and rsi < 25 and volume_analysis['is_spike']:  # 15%+ drop
+            score = 85
+            signal = "buy"
+        elif drop_pct < -0.10 and rsi < 30:  # 10%+ drop + oversold
+            score = 65
+            signal = "buy"
+        elif in_downtrend and rsi < 25 and volume_analysis['is_spike']:  # Extreme oversold
+            score = 50
+            signal = "buy"
+
+        return {
+            "signal": signal,
+            "score": score,
+            "drop_pct": drop_pct * 100,
+            "in_downtrend": in_downtrend,
+            "rsi": rsi
+        }

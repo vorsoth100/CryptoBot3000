@@ -46,7 +46,7 @@ class ConfigManager:
 
         # Market Screener
         "screener_enabled": True,
-        "screener_mode": "breakouts",
+        "screener_mode": "mean_reversion",  # Changed to bear market strategy
         "screener_coins": [
             # Top Tier (Highest Liquidity)
             "BTC-USD", "ETH-USD", "SOL-USD", "XRP-USD",
@@ -162,6 +162,8 @@ class ConfigManager:
             "max_position_pct": 0.20,
             "stop_loss_pct": 0.07,
             "take_profit_pct": 0.12,
+            "trailing_stop_activation_pct": 0.08,
+            "trailing_stop_distance_pct": 0.04,
             "claude_confidence_threshold": 85,
             "claude_max_trade_suggestions": 2,
             "claude_risk_tolerance": "conservative",
@@ -173,10 +175,12 @@ class ConfigManager:
             "max_position_pct": 0.25,
             "stop_loss_pct": 0.06,
             "take_profit_pct": 0.10,
+            "trailing_stop_activation_pct": 0.05,
+            "trailing_stop_distance_pct": 0.03,
             "claude_confidence_threshold": 75,
             "claude_max_trade_suggestions": 3,
             "claude_risk_tolerance": "moderate",
-            "screener_mode": "breakouts",
+            "screener_mode": "mean_reversion",  # Bear market default
             "max_daily_loss_pct": 0.05
         },
         "aggressive": {
@@ -184,10 +188,12 @@ class ConfigManager:
             "max_position_pct": 0.25,
             "stop_loss_pct": 0.05,
             "take_profit_pct": 0.08,
+            "trailing_stop_activation_pct": 0.03,
+            "trailing_stop_distance_pct": 0.02,
             "claude_confidence_threshold": 70,
             "claude_max_trade_suggestions": 4,
             "claude_risk_tolerance": "aggressive",
-            "screener_mode": "trending",
+            "screener_mode": "scalping",  # Quick in/out for aggressive traders
             "max_daily_loss_pct": 0.07
         }
     }

@@ -325,11 +325,23 @@
                     <div class="form-group">
                         <label>Screener Mode</label>
                         <select id="screener_mode" name="screener_mode">
-                            <option value="breakouts">Breakouts (High volume + momentum)</option>
-                            <option value="oversold">Oversold (RSI <30 + volume spike)</option>
-                            <option value="support">Support (Price near support)</option>
-                            <option value="trending">Trending (Strong uptrend)</option>
+                            <optgroup label="Bull Market Strategies">
+                                <option value="breakouts">Breakouts (High volume + momentum)</option>
+                                <option value="trending">Trending (Strong uptrend)</option>
+                                <option value="momentum">Momentum (Hot coins catching trends)</option>
+                            </optgroup>
+                            <optgroup label="Bear/Sideways Market Strategies">
+                                <option value="mean_reversion">Mean Reversion (Buy dips, sell bounces)</option>
+                                <option value="scalping">Scalping (Quick 1-3% moves)</option>
+                                <option value="range_trading">Range Trading (Support/resistance)</option>
+                                <option value="bear_bounce">Bear Bounce (Dead cat bounces)</option>
+                            </optgroup>
+                            <optgroup label="Universal Strategies">
+                                <option value="oversold">Oversold (RSI <30 + volume spike)</option>
+                                <option value="support">Support (Price near support)</option>
+                            </optgroup>
                         </select>
+                        <span class="help-text">Choose strategy based on market conditions (bull vs bear)</span>
                     </div>
 
                     <div class="form-group">

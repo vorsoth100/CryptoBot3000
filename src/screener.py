@@ -285,6 +285,65 @@ class MarketScreener:
             if market_data.get("price_change_30d", 0) > 20:
                 score += 10
 
+        elif mode == "mean_reversion":
+            # Bear market strategy: Buy extreme dips, sell bounces
+            # Perfect for ranging/choppy markets
+            reversion_data = self.signal_generator.detect_mean_reversion(df)
+
+            if reversion_data['signal'] == 'buy':
+                score += reversion_data['score']
+            elif reversion_data['signal'] == 'sell':
+                score += reversion_data['score']
+
+            # Boost for volume confirmation
+            if signal_data['volume_spike']:
+                score += 15
+
+        elif mode == "scalping":
+            # Quick in/out trades (1-3% targets)
+            # Perfect for volatile bear markets
+            scalp_data = self.signal_generator.detect_scalping_opportunity(df)
+
+            if scalp_data['signal'] == 'buy':
+                score += scalp_data['score']
+            elif scalp_data['signal'] == 'sell':
+                score += scalp_data['score']
+
+            # Volume is CRITICAL for scalping
+            if scalp_data['volume_spike']:
+                score += 25
+            else:
+                score *= 0.5  # Halve score without volume
+
+        elif mode == "range_trading":
+            # Buy support, sell resistance in consolidation
+            # Perfect for sideways markets
+            range_data = self.signal_generator.detect_range_trading(df)
+
+            if range_data['in_range']:
+                if range_data['signal'] == 'buy':
+                    score += range_data['score']
+                elif range_data['signal'] == 'sell':
+                    score += range_data['score']
+
+                # Boost for good position in range
+                if range_data['signal'] == 'buy' and range_data['range_position'] < 0.15:
+                    score += 20  # Very close to support
+                elif range_data['signal'] == 'sell' and range_data['range_position'] > 0.85:
+                    score += 20  # Very close to resistance
+
+        elif mode == "bear_bounce":
+            # Dead cat bounces in downtrends
+            # High risk, tight stops required
+            bounce_data = self.signal_generator.detect_dead_cat_bounce(df)
+
+            if bounce_data['signal'] == 'buy':
+                score += bounce_data['score']
+
+                # Extra boost for extreme conditions
+                if bounce_data['drop_pct'] < -20:  # 20%+ drop
+                    score += 15
+
         # Apply confidence multiplier
         score = score * (signal_data['confidence'] / 100.0)
 
