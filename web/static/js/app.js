@@ -453,10 +453,11 @@ async function loadConfig() {
         document.getElementById('claude_confidence_threshold').value = config.claude_confidence_threshold;
         document.getElementById('claude_max_trade_suggestions').value = config.claude_max_trade_suggestions || 3;
         document.getElementById('claude_risk_tolerance').value = config.claude_risk_tolerance || 'moderate';
+        document.getElementById('claude_analysis_schedule').value = config.claude_analysis_schedule || 'hourly';
 
         // Screener Settings
-        document.getElementById('screener_mode').value = config.screener_mode || 'breakouts';
-        document.getElementById('screener_max_results').value = config.screener_max_results || 10;
+        document.getElementById('screener_mode').value = config.screener_mode || 'auto';
+        document.getElementById('screener_max_results').value = config.screener_max_results || 15;
 
         // Data Sources
         document.getElementById('coingecko_enabled').checked = config.coingecko_enabled;
@@ -513,6 +514,7 @@ async function saveConfig() {
             claude_confidence_threshold: parseInt(document.getElementById('claude_confidence_threshold').value),
             claude_max_trade_suggestions: parseInt(document.getElementById('claude_max_trade_suggestions').value),
             claude_risk_tolerance: document.getElementById('claude_risk_tolerance').value,
+            claude_analysis_schedule: document.getElementById('claude_analysis_schedule').value,
 
             // Screener Settings
             screener_mode: document.getElementById('screener_mode').value,

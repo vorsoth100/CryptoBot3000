@@ -68,7 +68,7 @@ class ConfigManager:
         ],
         "screener_min_market_cap": 5000000000,
         "screener_min_volume_24h": 500000000,
-        "screener_max_results": 10,
+        "screener_max_results": 15,  # Increased for more opportunities
         "screener_run_schedule": "daily",
         "screener_cache_minutes": 120,  # Increased to reduce CoinGecko API calls
 
@@ -89,7 +89,7 @@ class ConfigManager:
         # Claude AI Analyst
         "claude_enabled": True,
         "claude_analysis_mode": "semi_autonomous",  # Changed from advisory
-        "claude_analysis_schedule": "six_hourly",  # Run every 6 hours
+        "claude_analysis_schedule": "hourly",  # Run every hour for fast markets
         "claude_analysis_time_utc": "00:00",
         "claude_confidence_threshold": 80,
         "claude_max_trade_suggestions": 3,

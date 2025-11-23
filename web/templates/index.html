@@ -320,6 +320,18 @@
                         <span class="help-text">Influences Claude's trade selection and position sizing</span>
                     </div>
 
+                    <div class="form-group">
+                        <label>Claude Analysis Frequency</label>
+                        <select id="claude_analysis_schedule" name="claude_analysis_schedule">
+                            <option value="hourly">Hourly (Most responsive)</option>
+                            <option value="two_hourly">Every 2 Hours</option>
+                            <option value="four_hourly">Every 4 Hours</option>
+                            <option value="six_hourly">Every 6 Hours</option>
+                            <option value="daily">Daily (Conservative)</option>
+                        </select>
+                        <span class="help-text">How often Claude analyzes market and updates trade recommendations</span>
+                    </div>
+
                     <h3 style="margin-top: 30px; margin-bottom: 15px; border-bottom: 2px solid #38444d; padding-bottom: 10px;">Screener Settings</h3>
 
                     <div class="form-group">
