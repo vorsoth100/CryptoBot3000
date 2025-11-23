@@ -430,7 +430,6 @@ async function loadConfig() {
         document.getElementById('max_positions').value = config.max_positions;
         document.getElementById('max_position_pct').value = config.max_position_pct;
         document.getElementById('stop_loss_pct').value = config.stop_loss_pct;
-        document.getElementById('take_profit_pct').value = config.take_profit_pct;
         document.getElementById('max_drawdown_pct').value = config.max_drawdown_pct;
         document.getElementById('max_daily_loss_pct').value = config.max_daily_loss_pct || 0.05;
 
@@ -491,7 +490,6 @@ async function saveConfig() {
             max_positions: parseInt(document.getElementById('max_positions').value),
             max_position_pct: parseFloat(document.getElementById('max_position_pct').value),
             stop_loss_pct: parseFloat(document.getElementById('stop_loss_pct').value),
-            take_profit_pct: parseFloat(document.getElementById('take_profit_pct').value),
             max_drawdown_pct: parseFloat(document.getElementById('max_drawdown_pct').value),
             max_daily_loss_pct: parseFloat(document.getElementById('max_daily_loss_pct').value),
 
