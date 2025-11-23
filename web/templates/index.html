@@ -325,6 +325,9 @@
                     <div class="form-group">
                         <label>Screener Mode</label>
                         <select id="screener_mode" name="screener_mode">
+                            <optgroup label="AI-Powered (Recommended)">
+                                <option value="auto">🤖 AUTO - Claude AI picks best strategy</option>
+                            </optgroup>
                             <optgroup label="Bull Market Strategies">
                                 <option value="breakouts">Breakouts (High volume + momentum)</option>
                                 <option value="trending">Trending (Strong uptrend)</option>
@@ -341,7 +344,7 @@
                                 <option value="support">Support (Price near support)</option>
                             </optgroup>
                         </select>
-                        <span class="help-text">Choose strategy based on market conditions (bull vs bear)</span>
+                        <span class="help-text">AUTO mode: Claude AI analyzes market and auto-selects best strategy</span>
                     </div>
 
                     <div class="form-group">

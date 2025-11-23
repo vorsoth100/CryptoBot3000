@@ -46,7 +46,7 @@ class ConfigManager:
 
         # Market Screener
         "screener_enabled": True,
-        "screener_mode": "mean_reversion",  # Changed to bear market strategy
+        "screener_mode": "auto",  # Let Claude AI auto-select best strategy
         "screener_coins": [
             # Top Tier (Highest Liquidity)
             "BTC-USD", "ETH-USD", "SOL-USD", "XRP-USD",

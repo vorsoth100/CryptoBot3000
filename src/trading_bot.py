@@ -66,10 +66,10 @@ class TradingBot:
         self.signal_generator = SignalGenerator(self.config)
         self.news_sentiment = NewsSentiment(self.config)
         self.coingecko = CoinGeckoCollector(self.config)
-        self.screener = MarketScreener(self.config, self.data_collector, self.signal_generator, self.news_sentiment, self.coingecko)
+        self.claude_analyst = ClaudeAnalyst(self.config)
+        self.screener = MarketScreener(self.config, self.data_collector, self.signal_generator, self.news_sentiment, self.coingecko, self.claude_analyst)
         self.risk_manager = RiskManager(self.config, self.news_sentiment)
         self.performance_tracker = PerformanceTracker(self.config)
-        self.claude_analyst = ClaudeAnalyst(self.config)
         self.telegram = TelegramNotifier(self.config)
 
         # Timezone for timestamps

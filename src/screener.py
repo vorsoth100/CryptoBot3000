@@ -12,7 +12,7 @@ from src.signals import SignalGenerator
 class MarketScreener:
     """Screens market for trading opportunities"""
 
-    def __init__(self, config: Dict, data_collector, signal_generator: SignalGenerator, news_sentiment=None, coingecko=None):
+    def __init__(self, config: Dict, data_collector, signal_generator: SignalGenerator, news_sentiment=None, coingecko=None, claude_analyst=None):
         """
         Initialize market screener
 
@@ -22,12 +22,14 @@ class MarketScreener:
             signal_generator: SignalGenerator instance
             news_sentiment: NewsSentiment instance (optional)
             coingecko: CoinGeckoCollector instance (optional)
+            claude_analyst: ClaudeAnalyst instance (optional, for auto mode)
         """
         self.config = config
         self.data_collector = data_collector
         self.signal_generator = signal_generator
         self.news_sentiment = news_sentiment
         self.coingecko = coingecko
+        self.claude_analyst = claude_analyst
         self.logger = logging.getLogger("CryptoBot.Screener")
 
     def screen_coins(self, mode: Optional[str] = None) -> List[Dict]:
@@ -35,12 +37,39 @@ class MarketScreener:
         Screen coins based on mode
 
         Args:
-            mode: Screening mode (breakouts, oversold, support, trending)
+            mode: Screening mode (breakouts, oversold, support, trending, auto)
 
         Returns:
             List of opportunities sorted by score
         """
-        mode = mode or self.config.get("screener_mode", "breakouts")
+        mode = mode or self.config.get("screener_mode", "mean_reversion")
+
+        # AUTO MODE: Let Claude AI decide best strategy
+        if mode == "auto":
+            if self.claude_analyst:
+                # Collect market data for Claude
+                market_data = {}
+                try:
+                    # Get BTC data as market benchmark
+                    btc_changes = self.data_collector.get_price_changes("BTC-USD")
+                    if btc_changes:
+                        market_data['BTC-USD'] = btc_changes
+
+                    # Get fear & greed if available
+                    # This would need to be fetched from data_collector if implemented
+                    market_data['fear_greed_index'] = {'value': 50}  # Default neutral
+
+                    # Ask Claude for best mode
+                    recommended_mode = self.claude_analyst.recommend_screener_mode(market_data)
+                    self.logger.info(f"AUTO MODE: Claude recommends '{recommended_mode}' strategy")
+                    mode = recommended_mode
+                except Exception as e:
+                    self.logger.error(f"Error in auto mode selection: {e}")
+                    mode = "mean_reversion"  # Safe fallback
+            else:
+                self.logger.warning("AUTO mode selected but Claude not available, using mean_reversion")
+                mode = "mean_reversion"
+
         coins = self.config.get("screener_coins", [])
 
         self.logger.info(f"Screening {len(coins)} coins in '{mode}' mode")

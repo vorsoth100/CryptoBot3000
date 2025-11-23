@@ -368,3 +368,70 @@ Return ONLY valid JSON, no additional text."""
         output.append("\n" + "=" * 80)
 
         return "\n".join(output)
+
+    def recommend_screener_mode(self, market_data: Dict) -> str:
+        """
+        Analyze market conditions and recommend best screener mode
+
+        Args:
+            market_data: Dictionary with BTC price data, fear/greed, etc.
+
+        Returns:
+            Recommended screener mode string
+        """
+        try:
+            # Get BTC as market benchmark
+            btc_data = market_data.get('BTC-USD', {})
+
+            # Price changes
+            change_24h = btc_data.get('price_change_24h', 0)
+            change_7d = btc_data.get('price_change_7d', 0)
+            change_30d = btc_data.get('price_change_30d', 0)
+
+            # Volume analysis
+            volume_24h = btc_data.get('volume_24h', 0)
+
+            # Fear & Greed
+            fear_greed = market_data.get('fear_greed_index', {})
+            fg_value = fear_greed.get('value', 50)
+
+            # Decision logic
+
+            # Strong bull market: sustained gains + high fear/greed
+            if change_7d > 10 and change_30d > 15 and fg_value > 60:
+                self.logger.info("Market regime: STRONG BULL - Recommending 'breakouts'")
+                return "breakouts"
+
+            # Moderate bull: positive trend
+            elif change_7d > 5 and change_30d > 8:
+                self.logger.info("Market regime: BULL TREND - Recommending 'momentum'")
+                return "momentum"
+
+            # Extreme fear / oversold: dead cat bounce opportunity
+            elif change_7d < -15 and fg_value < 20:
+                self.logger.info("Market regime: EXTREME FEAR - Recommending 'bear_bounce'")
+                return "bear_bounce"
+
+            # Bear market: sustained downtrend
+            elif change_7d < -5 and change_30d < -10:
+                self.logger.info("Market regime: BEAR MARKET - Recommending 'mean_reversion'")
+                return "mean_reversion"
+
+            # High volatility sideways: choppy with big swings
+            elif abs(change_7d) > 8 and abs(change_24h) > 3:
+                self.logger.info("Market regime: HIGH VOLATILITY - Recommending 'scalping'")
+                return "scalping"
+
+            # Low volatility sideways: ranging market
+            elif abs(change_7d) < 5 and abs(change_30d) < 8:
+                self.logger.info("Market regime: SIDEWAYS/RANGING - Recommending 'range_trading'")
+                return "range_trading"
+
+            # Default: mean reversion for uncertain conditions
+            else:
+                self.logger.info("Market regime: UNCERTAIN - Defaulting to 'mean_reversion'")
+                return "mean_reversion"
+
+        except Exception as e:
+            self.logger.error(f"Error determining screener mode: {e}")
+            return "mean_reversion"  # Safe default
