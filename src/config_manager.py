@@ -34,13 +34,13 @@ class ConfigManager:
 
         # Risk Management
         "stop_loss_pct": 0.06,
-        "take_profit_pct": 0.10,
-        "trailing_stop_enabled": True,
-        "trailing_stop_activation_pct": 0.10,
-        "trailing_stop_distance_pct": 0.05,
+        "take_profit_pct": 0.10,  # Not used when trailing stop is primary strategy
+        "trailing_stop_enabled": True,  # PRIMARY EXIT METHOD: Let winners run
+        "trailing_stop_activation_pct": 0.05,  # Start trailing after 5% profit
+        "trailing_stop_distance_pct": 0.03,  # Exit if drops 3% from peak
         "max_drawdown_pct": 0.20,
         "max_daily_loss_pct": 0.05,
-        "partial_profit_enabled": True,
+        "partial_profit_enabled": False,  # Disabled: using trailing stop instead
         "partial_profit_levels": [0.10, 0.20, 0.30],
         "partial_profit_amounts": [0.33, 0.33, 0.34],
 

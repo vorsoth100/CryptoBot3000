@@ -307,21 +307,13 @@ class RiskManager:
         # Calculate current P&L %
         pnl_pct = (current_price - position.entry_price) / position.entry_price
 
-        # 1. Check stop loss
+        # 1. Check stop loss (downside protection)
         stop_loss_pct = self.config.get("stop_loss_pct", 0.06)
         if pnl_pct <= -stop_loss_pct:
             return ("STOP_LOSS", f"Hit stop loss at {pnl_pct * 100:.2f}%")
 
-        # 2. Check take profit
-        take_profit_pct = self.config.get("take_profit_pct", 0.10)
-        if pnl_pct >= take_profit_pct:
-            # Check if partial profit enabled
-            if self.config.get("partial_profit_enabled", True):
-                return self._check_partial_profits(position, pnl_pct)
-            else:
-                return ("TAKE_PROFIT", f"Hit take profit at {pnl_pct * 100:.2f}%")
-
-        # 3. Check trailing stop
+        # 2. Check trailing stop (let winners run, exit on reversal)
+        # Always track peak and use trailing stop as primary exit method
         if self.config.get("trailing_stop_enabled", True):
             trailing_action = self._check_trailing_stop(position, current_price, pnl_pct)
             if trailing_action:
@@ -348,22 +340,31 @@ class RiskManager:
 
     def _check_trailing_stop(self, position: Position, current_price: float,
                             pnl_pct: float) -> Optional[Tuple[str, str]]:
-        """Check trailing stop"""
-        activation_pct = self.config.get("trailing_stop_activation_pct", 0.10)
-        distance_pct = self.config.get("trailing_stop_distance_pct", 0.05)
+        """
+        Check trailing stop - tracks peak from entry and exits on reversal
 
-        # Only activate trailing stop after reaching activation threshold
+        Strategy: Let winners run indefinitely, only exit when price reverses
+        """
+        activation_pct = self.config.get("trailing_stop_activation_pct", 0.05)  # Lower threshold
+        distance_pct = self.config.get("trailing_stop_distance_pct", 0.03)  # Tighter trailing distance
+
+        # Always track peak price (not just after activation)
+        if current_price > position.peak_price:
+            position.peak_price = current_price
+            position.peak_pnl_pct = pnl_pct
+
+        # Only activate trailing stop after reaching minimum profit threshold
+        # This prevents premature exits on small fluctuations
         if pnl_pct >= activation_pct:
-            # Update peak
-            if current_price > position.peak_price:
-                position.peak_price = current_price
-                position.peak_pnl_pct = pnl_pct
-
             # Check if price dropped from peak
             drop_from_peak = (position.peak_price - current_price) / position.peak_price
 
             if drop_from_peak >= distance_pct:
-                return ("TRAILING_STOP", f"Trailing stop triggered (drop {drop_from_peak * 100:.2f}% from peak)")
+                final_pnl = ((current_price - position.entry_price) / position.entry_price) * 100
+                peak_pnl = ((position.peak_price - position.entry_price) / position.entry_price) * 100
+                return ("TRAILING_STOP",
+                       f"Trailing stop triggered: peaked at +{peak_pnl:.2f}%, " +
+                       f"exiting at +{final_pnl:.2f}% (dropped {drop_from_peak * 100:.2f}% from peak)")
 
         return None
 
