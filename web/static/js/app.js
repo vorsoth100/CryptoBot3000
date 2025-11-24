@@ -409,6 +409,42 @@ function updateActiveConfig(config, statusData) {
         document.getElementById('claude-summary-details').innerHTML = '<em>No analysis data available yet</em>';
     }
 
+    // Update AUTO Mode status display
+    const autoModeStatusEl = document.getElementById('claude-auto-mode-status');
+    const autoModeMappingEl = document.getElementById('auto-mode-mapping');
+    if (autoModeStatusEl && autoModeMappingEl && config.auto_mode_active) {
+        // Format screener and Claude prompt names for display
+        const formatStrategyName = (name) => {
+            const names = {
+                'mean_reversion': 'Mean Reversion',
+                'bear_bounce': 'Bear Bounce',
+                'bear_survival': 'Bear Survival',
+                'breakouts': 'Breakouts',
+                'breakout_hunter': 'Breakout Hunter',
+                'momentum': 'Momentum',
+                'momentum_bull': 'Momentum Bull',
+                'scalping': 'Scalping',
+                'range_scalping': 'Range Scalping',
+                'dip_buying': 'Dip Buying',
+                'oversold': 'Oversold',
+                'auto': 'Auto'
+            };
+            return names[name] || name;
+        };
+
+        const screenerName = formatStrategyName(config.auto_mode_screener);
+        const claudePromptName = formatStrategyName(config.auto_mode_claude_prompt);
+
+        autoModeMappingEl.innerHTML = `
+            <strong>Screener:</strong> <span style="color: #fbbf24;">${screenerName}</span>
+            <span style="color: #8b5cf6;">→</span>
+            <strong>Claude Prompt:</strong> <span style="color: #c4b5fd;">${claudePromptName}</span>
+        `;
+        autoModeStatusEl.style.display = 'block';
+    } else if (autoModeStatusEl) {
+        autoModeStatusEl.style.display = 'none';
+    }
+
     // Update Screener Summary
     const screenerSummary = config.screener_summary;
     if (screenerSummary && screenerSummary.timestamp) {

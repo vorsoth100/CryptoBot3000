@@ -67,7 +67,38 @@ def get_status():
 def get_config():
     """Get current configuration"""
     config_manager = ConfigManager()
-    return jsonify(config_manager.get_all())
+    config = config_manager.get_all()
+
+    # Add AUTO mode mapping information
+    claude_prompt_strategy = config.get('claude_prompt_strategy', 'auto')
+    screener_mode = config.get('screener_mode', 'auto')
+
+    # Map screener to prompt (from claude_analyst.py logic)
+    screener_to_prompt_mapping = {
+        'breakouts': 'breakout_hunter',
+        'momentum': 'momentum_bull',
+        'trending': 'momentum_bull',
+        'oversold': 'dip_buying',
+        'bear_bounce': 'bear_survival',
+        'mean_reversion': 'bear_survival',
+        'scalping': 'range_scalping',
+        'range_trading': 'range_scalping',
+        'support': 'range_scalping',
+        'auto': 'momentum_bull'
+    }
+
+    # Determine actual Claude prompt being used
+    if claude_prompt_strategy == 'auto':
+        actual_claude_prompt = screener_to_prompt_mapping.get(screener_mode, 'momentum_bull')
+        config['auto_mode_active'] = True
+        config['auto_mode_screener'] = screener_mode
+        config['auto_mode_claude_prompt'] = actual_claude_prompt
+    else:
+        config['auto_mode_active'] = False
+        config['auto_mode_screener'] = screener_mode
+        config['auto_mode_claude_prompt'] = claude_prompt_strategy
+
+    return jsonify(config)
 
 
 @app.route('/api/config', methods=['POST'])
