@@ -65,7 +65,12 @@ def get_status():
             full_config = config_manager.get_all()
 
             claude_prompt_strategy = full_config.get('claude_prompt_strategy', 'auto')
-            screener_mode = status['active_config'].get('screener_mode', 'auto')
+
+            # Get the ACTUAL active screener mode, not the configured mode
+            # active_screener_mode is what's actually running (e.g., "mean_reversion")
+            # screener_mode might be "auto"
+            actual_screener_mode = status['active_config'].get('active_screener_mode', 'auto')
+            configured_screener_mode = status['active_config'].get('screener_mode', 'auto')
 
             # Map screener to prompt (from claude_analyst.py logic)
             screener_to_prompt_mapping = {
@@ -78,18 +83,20 @@ def get_status():
                 'scalping': 'range_scalping',
                 'range_trading': 'range_scalping',
                 'support': 'range_scalping',
-                'auto': 'momentum_bull'
+                'auto': 'momentum_bull',
+                'pending': 'momentum_bull'
             }
 
             # Determine actual Claude prompt being used
             if claude_prompt_strategy == 'auto':
-                actual_claude_prompt = screener_to_prompt_mapping.get(screener_mode, 'momentum_bull')
+                # Use the actual active screener mode for mapping
+                actual_claude_prompt = screener_to_prompt_mapping.get(actual_screener_mode, 'momentum_bull')
                 status['active_config']['auto_mode_active'] = True
-                status['active_config']['auto_mode_screener'] = screener_mode
+                status['active_config']['auto_mode_screener'] = actual_screener_mode
                 status['active_config']['auto_mode_claude_prompt'] = actual_claude_prompt
             else:
                 status['active_config']['auto_mode_active'] = False
-                status['active_config']['auto_mode_screener'] = screener_mode
+                status['active_config']['auto_mode_screener'] = actual_screener_mode
                 status['active_config']['auto_mode_claude_prompt'] = claude_prompt_strategy
 
         return jsonify(status)
