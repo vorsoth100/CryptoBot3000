@@ -721,6 +721,27 @@ class TradingBot:
             active_mode = configured_mode
             mode_display = configured_mode
 
+        # Calculate next run times
+        check_interval = self.config.get("check_interval_sec", 3600)
+
+        # Get Claude analysis schedule info
+        claude_schedule = self.config.get("claude_analysis_schedule", "hourly")
+        schedule_intervals = {
+            "hourly": 1,
+            "two_hourly": 2,
+            "four_hourly": 4,
+            "six_hourly": 6,
+            "twice_daily": 12,
+            "daily": 24
+        }
+        claude_interval_hours = schedule_intervals.get(claude_schedule, 1)
+
+        # Load latest Claude analysis summary
+        claude_summary = self._get_claude_summary()
+
+        # Load latest screener summary
+        screener_summary = self._get_screener_summary()
+
         return {
             "running": self.running,
             "dry_run": self.dry_run,
@@ -730,6 +751,8 @@ class TradingBot:
             "position_count": len(positions),
             "performance": metrics,
             "last_analysis": self.last_analysis_time.isoformat() if self.last_analysis_time else None,
+            "next_bot_check": check_interval,  # seconds until next check
+            "claude_interval_hours": claude_interval_hours,
 
             # Active configuration
             "active_config": {
@@ -746,9 +769,87 @@ class TradingBot:
                 "trailing_stop_activation_pct": self.config.get("trailing_stop_activation_pct", 0.05) * 100,
                 "trailing_stop_distance_pct": self.config.get("trailing_stop_distance_pct", 0.03) * 100,
                 "max_positions": self.config.get("max_positions", 3),
-                "max_daily_loss_pct": self.config.get("max_daily_loss_pct", 0.05) * 100
+                "max_daily_loss_pct": self.config.get("max_daily_loss_pct", 0.05) * 100,
+
+                # Claude and Screener summaries
+                "claude_summary": claude_summary,
+                "screener_summary": screener_summary
             }
         }
+
+    def _get_claude_summary(self) -> Dict:
+        """Get summary of latest Claude analysis"""
+        try:
+            import json
+            import os
+
+            if not os.path.exists("data/latest_claude_analysis.json"):
+                return None
+
+            with open("data/latest_claude_analysis.json", "r") as f:
+                data = json.load(f)
+
+            analysis = data.get("analysis", {})
+            timestamp = data.get("timestamp")
+
+            # Extract key information
+            summary = {
+                "timestamp": timestamp,
+                "sentiment": analysis.get("market_sentiment", "Unknown"),
+                "recommendation_count": len(analysis.get("recommended_actions", [])),
+                "top_recommendations": []
+            }
+
+            # Get top 3 recommendations
+            for rec in analysis.get("recommended_actions", [])[:3]:
+                summary["top_recommendations"].append({
+                    "coin": rec.get("coin", "Unknown"),
+                    "action": rec.get("action", "hold"),
+                    "confidence": rec.get("confidence", 0)
+                })
+
+            return summary
+
+        except Exception as e:
+            self.logger.error(f"Error loading Claude summary: {e}")
+            return None
+
+    def _get_screener_summary(self) -> Dict:
+        """Get summary of latest screener results"""
+        try:
+            import json
+            import os
+
+            if not os.path.exists("data/latest_screener.json"):
+                return None
+
+            with open("data/latest_screener.json", "r") as f:
+                data = json.load(f)
+
+            opportunities = data.get("opportunities", [])
+            timestamp = data.get("timestamp")
+
+            # Extract key information
+            summary = {
+                "timestamp": timestamp,
+                "opportunity_count": len(opportunities),
+                "top_opportunities": []
+            }
+
+            # Get top 3 opportunities
+            for opp in opportunities[:3]:
+                summary["top_opportunities"].append({
+                    "coin": opp.get("product_id", "Unknown"),
+                    "signal": opp.get("signal", "neutral"),
+                    "score": opp.get("score", 0),
+                    "confidence": opp.get("confidence", 0)
+                })
+
+            return summary
+
+        except Exception as e:
+            self.logger.error(f"Error loading screener summary: {e}")
+            return None
 
     def _save_screener_results(self, opportunities: List[Dict]):
         """Save screener results to file for web dashboard"""

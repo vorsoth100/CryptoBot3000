@@ -205,10 +205,10 @@ function updateStatusDisplay(data) {
     }
 
     // Update active configuration display
-    updateActiveConfig(data.active_config);
+    updateActiveConfig(data.active_config, data);
 }
 
-function updateActiveConfig(config) {
+function updateActiveConfig(config, statusData) {
     if (!config) return;
 
     // Helper to format schedule display
@@ -245,9 +245,25 @@ function updateActiveConfig(config) {
         const modeMap = {
             'semi_autonomous': 'Semi-Autonomous',
             'advisory_only': 'Advisory Only',
-            'fully_autonomous': 'Fully Autonomous'
+            'fully_autonomous': 'Fully Autonomous',
+            'autonomous': 'Autonomous'
         };
         return modeMap[mode] || mode;
+    };
+
+    // Helper to format relative time (e.g., "in 45 minutes")
+    const formatRelativeTime = (seconds) => {
+        const minutes = Math.floor(seconds / 60);
+        const hours = Math.floor(minutes / 60);
+
+        if (hours > 0) {
+            const mins = minutes % 60;
+            return mins > 0 ? `in ${hours}h ${mins}m` : `in ${hours}h`;
+        } else if (minutes > 0) {
+            return `in ${minutes} min`;
+        } else {
+            return `in ${seconds}s`;
+        }
     };
 
     // Update screener mode display
@@ -295,7 +311,70 @@ function updateActiveConfig(config) {
         claudeModeEl.textContent = formatClaudeMode(config.claude_analysis_mode || 'semi_autonomous');
     }
 
-    // Update last update time
+    // Update Claude AI Summary
+    const claudeSummary = config.claude_summary;
+    if (claudeSummary && claudeSummary.timestamp) {
+        const lastRun = new Date(claudeSummary.timestamp);
+        document.getElementById('claude-last-run').textContent = lastRun.toLocaleString();
+
+        // Calculate next run
+        const intervalHours = statusData.claude_interval_hours || 1;
+        const nextRun = new Date(lastRun.getTime() + (intervalHours * 60 * 60 * 1000));
+        const now = new Date();
+        const secondsUntil = Math.max(0, Math.floor((nextRun - now) / 1000));
+        document.getElementById('claude-next-run').textContent = formatRelativeTime(secondsUntil);
+
+        // Display summary details
+        let details = `<div><strong>Sentiment:</strong> ${claudeSummary.sentiment || 'Unknown'}</div>`;
+        details += `<div><strong>Recommendations:</strong> ${claudeSummary.recommendation_count || 0}</div>`;
+        if (claudeSummary.top_recommendations && claudeSummary.top_recommendations.length > 0) {
+            details += '<div style="margin-top: 5px;"><strong>Top Picks:</strong></div><ul style="margin: 5px 0; padding-left: 20px;">';
+            claudeSummary.top_recommendations.forEach(rec => {
+                const action = rec.action.toUpperCase();
+                const color = action === 'BUY' ? '#10b981' : action === 'SELL' ? '#ef4444' : '#fbbf24';
+                details += `<li><span style="color: ${color};">${action}</span> ${rec.coin} (${rec.confidence}%)</li>`;
+            });
+            details += '</ul>';
+        }
+        document.getElementById('claude-summary-details').innerHTML = details;
+    } else {
+        document.getElementById('claude-last-run').textContent = 'Never';
+        document.getElementById('claude-next-run').textContent = 'Pending first run';
+        document.getElementById('claude-summary-details').innerHTML = '<em>No analysis data available yet</em>';
+    }
+
+    // Update Screener Summary
+    const screenerSummary = config.screener_summary;
+    if (screenerSummary && screenerSummary.timestamp) {
+        const lastRun = new Date(screenerSummary.timestamp);
+        document.getElementById('screener-last-run').textContent = lastRun.toLocaleString();
+
+        // Screener runs with each bot check (every hour typically)
+        const checkInterval = statusData.next_bot_check || 3600;
+        const nextRun = new Date(lastRun.getTime() + (checkInterval * 1000));
+        const now = new Date();
+        const secondsUntil = Math.max(0, Math.floor((nextRun - now) / 1000));
+        document.getElementById('screener-next-run').textContent = formatRelativeTime(secondsUntil);
+
+        // Display summary details
+        let details = `<div><strong>Opportunities Found:</strong> ${screenerSummary.opportunity_count || 0}</div>`;
+        if (screenerSummary.top_opportunities && screenerSummary.top_opportunities.length > 0) {
+            details += '<div style="margin-top: 5px;"><strong>Top Opportunities:</strong></div><ul style="margin: 5px 0; padding-left: 20px;">';
+            screenerSummary.top_opportunities.forEach(opp => {
+                const signal = opp.signal.replace('_', ' ').toUpperCase();
+                const color = signal.includes('BUY') ? '#10b981' : signal.includes('SELL') ? '#ef4444' : '#fbbf24';
+                details += `<li>${opp.coin}: <span style="color: ${color};">${signal}</span> (Score: ${opp.score.toFixed(1)})</li>`;
+            });
+            details += '</ul>';
+        }
+        document.getElementById('screener-summary-details').innerHTML = details;
+    } else {
+        document.getElementById('screener-last-run').textContent = 'Never';
+        document.getElementById('screener-next-run').textContent = 'Pending first run';
+        document.getElementById('screener-summary-details').innerHTML = '<em>No screener data available yet</em>';
+    }
+
+    // Update last update time (use local timezone)
     const lastUpdateEl = document.getElementById('config-last-update');
     if (lastUpdateEl && config.last_mode_update) {
         const updateTime = new Date(config.last_mode_update);
