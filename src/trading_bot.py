@@ -67,7 +67,7 @@ class TradingBot:
         self.news_sentiment = NewsSentiment(self.config)
         self.coingecko = CoinGeckoCollector(self.config)
         self.claude_analyst = ClaudeAnalyst(self.config)
-        self.screener = MarketScreener(self.config, self.data_collector, self.signal_generator, self.news_sentiment, self.coingecko, self.claude_analyst)
+        self.screener = MarketScreener(self.config, self.data_collector, self.signal_generator, self.news_sentiment, self.coingecko, self.claude_analyst, self)
         self.risk_manager = RiskManager(self.config, self.news_sentiment)
         self.performance_tracker = PerformanceTracker(self.config)
         self.telegram = TelegramNotifier(self.config)
@@ -80,6 +80,8 @@ class TradingBot:
         self.dry_run = self.config.get("dry_run", True)
         self.last_analysis_time = None
         self.last_daily_reset = datetime.now().date()
+        self.current_screener_mode = None  # Track what AUTO mode selects
+        self.last_screener_mode_update = None
 
         self.logger.info(f"Bot initialized in {'DRY RUN' if self.dry_run else 'LIVE'} mode")
 
@@ -702,6 +704,17 @@ class TradingBot:
         positions = self.risk_manager.get_all_positions()
         metrics = self.performance_tracker.calculate_metrics()
 
+        # Get configured screener mode
+        configured_mode = self.config.get("screener_mode", "auto")
+
+        # Prepare mode display info
+        if configured_mode == "auto":
+            active_mode = self.current_screener_mode or "pending"
+            mode_display = f"AUTO → {active_mode}"
+        else:
+            active_mode = configured_mode
+            mode_display = configured_mode
+
         return {
             "running": self.running,
             "dry_run": self.dry_run,
@@ -710,7 +723,25 @@ class TradingBot:
             "positions": positions,
             "position_count": len(positions),
             "performance": metrics,
-            "last_analysis": self.last_analysis_time.isoformat() if self.last_analysis_time else None
+            "last_analysis": self.last_analysis_time.isoformat() if self.last_analysis_time else None,
+
+            # Active configuration
+            "active_config": {
+                "screener_mode": configured_mode,
+                "active_screener_mode": active_mode,
+                "mode_display": mode_display,
+                "last_mode_update": self.last_screener_mode_update.isoformat() if self.last_screener_mode_update else None,
+                "screener_max_results": self.config.get("screener_max_results", 15),
+                "claude_analysis_schedule": self.config.get("claude_analysis_schedule", "hourly"),
+                "claude_analysis_mode": self.config.get("claude_analysis_mode", "semi_autonomous"),
+                "claude_confidence_threshold": self.config.get("claude_confidence_threshold", 80),
+                "stop_loss_pct": self.config.get("stop_loss_pct", 0.06) * 100,
+                "trailing_stop_enabled": self.config.get("trailing_stop_enabled", True),
+                "trailing_stop_activation_pct": self.config.get("trailing_stop_activation_pct", 0.05) * 100,
+                "trailing_stop_distance_pct": self.config.get("trailing_stop_distance_pct", 0.03) * 100,
+                "max_positions": self.config.get("max_positions", 3),
+                "max_daily_loss_pct": self.config.get("max_daily_loss_pct", 0.05) * 100
+            }
         }
 
     def _save_screener_results(self, opportunities: List[Dict]):

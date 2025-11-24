@@ -203,6 +203,106 @@ function updateStatusDisplay(data) {
         modeValue.textContent = 'LIVE';
         modeValue.style.color = '#e0245e';
     }
+
+    // Update active configuration display
+    updateActiveConfig(data.active_config);
+}
+
+function updateActiveConfig(config) {
+    if (!config) return;
+
+    // Helper to format schedule display
+    const formatSchedule = (schedule) => {
+        const scheduleMap = {
+            'hourly': 'Every Hour',
+            'two_hourly': 'Every 2 Hours',
+            'four_hourly': 'Every 4 Hours',
+            'six_hourly': 'Every 6 Hours',
+            'daily': 'Daily'
+        };
+        return scheduleMap[schedule] || schedule;
+    };
+
+    // Helper to format mode display
+    const formatMode = (mode) => {
+        const modeMap = {
+            'auto': '🤖 AUTO',
+            'mean_reversion': 'Mean Reversion',
+            'scalping': 'Scalping',
+            'range_trading': 'Range Trading',
+            'bear_bounce': 'Bear Bounce',
+            'breakouts': 'Breakouts',
+            'momentum': 'Momentum',
+            'trending': 'Trending',
+            'oversold': 'Oversold',
+            'support': 'Support'
+        };
+        return modeMap[mode] || mode;
+    };
+
+    // Helper to format Claude mode display
+    const formatClaudeMode = (mode) => {
+        const modeMap = {
+            'semi_autonomous': 'Semi-Autonomous',
+            'advisory_only': 'Advisory Only',
+            'fully_autonomous': 'Fully Autonomous'
+        };
+        return modeMap[mode] || mode;
+    };
+
+    // Update screener mode display
+    const screenerModeEl = document.getElementById('config-screener-mode');
+    if (screenerModeEl) {
+        if (config.mode_display) {
+            screenerModeEl.textContent = config.mode_display;
+        } else if (config.screener_mode === 'auto' && config.active_screener_mode) {
+            screenerModeEl.textContent = `🤖 AUTO → ${formatMode(config.active_screener_mode)}`;
+        } else {
+            screenerModeEl.textContent = formatMode(config.screener_mode || 'auto');
+        }
+    }
+
+    // Update Claude schedule
+    const claudeScheduleEl = document.getElementById('config-claude-schedule');
+    if (claudeScheduleEl) {
+        claudeScheduleEl.textContent = formatSchedule(config.claude_analysis_schedule || 'hourly');
+    }
+
+    // Update stop loss
+    const stopLossEl = document.getElementById('config-stop-loss');
+    if (stopLossEl) {
+        stopLossEl.textContent = (config.stop_loss_pct || 6).toFixed(1) + '%';
+    }
+
+    // Update trailing stop
+    const trailingStopEl = document.getElementById('config-trailing-stop');
+    if (trailingStopEl) {
+        const enabled = config.trailing_stop_enabled !== false;
+        const activation = (config.trailing_stop_activation_pct || 5).toFixed(1);
+        const distance = (config.trailing_stop_distance_pct || 3).toFixed(1);
+        trailingStopEl.textContent = enabled ? `✓ ${activation}% / ${distance}%` : '✗ Disabled';
+    }
+
+    // Update max positions
+    const maxPositionsEl = document.getElementById('config-max-positions');
+    if (maxPositionsEl) {
+        maxPositionsEl.textContent = config.max_positions || 3;
+    }
+
+    // Update Claude mode
+    const claudeModeEl = document.getElementById('config-claude-mode');
+    if (claudeModeEl) {
+        claudeModeEl.textContent = formatClaudeMode(config.claude_analysis_mode || 'semi_autonomous');
+    }
+
+    // Update last update time
+    const lastUpdateEl = document.getElementById('config-last-update');
+    if (lastUpdateEl && config.last_mode_update) {
+        const updateTime = new Date(config.last_mode_update);
+        lastUpdateEl.textContent = updateTime.toLocaleString();
+    } else if (lastUpdateEl) {
+        lastUpdateEl.textContent = 'Pending first run';
+    }
 }
 
 // Load Dashboard

@@ -5,6 +5,7 @@ Scans coins for trading opportunities based on different strategies
 
 import logging
 from typing import Dict, List, Optional
+from datetime import datetime
 import pandas as pd
 from src.signals import SignalGenerator
 
@@ -12,7 +13,7 @@ from src.signals import SignalGenerator
 class MarketScreener:
     """Screens market for trading opportunities"""
 
-    def __init__(self, config: Dict, data_collector, signal_generator: SignalGenerator, news_sentiment=None, coingecko=None, claude_analyst=None):
+    def __init__(self, config: Dict, data_collector, signal_generator: SignalGenerator, news_sentiment=None, coingecko=None, claude_analyst=None, bot=None):
         """
         Initialize market screener
 
@@ -23,6 +24,7 @@ class MarketScreener:
             news_sentiment: NewsSentiment instance (optional)
             coingecko: CoinGeckoCollector instance (optional)
             claude_analyst: ClaudeAnalyst instance (optional, for auto mode)
+            bot: TradingBot instance (optional, to track mode selection)
         """
         self.config = config
         self.data_collector = data_collector
@@ -30,6 +32,7 @@ class MarketScreener:
         self.news_sentiment = news_sentiment
         self.coingecko = coingecko
         self.claude_analyst = claude_analyst
+        self.bot = bot
         self.logger = logging.getLogger("CryptoBot.Screener")
 
     def screen_coins(self, mode: Optional[str] = None) -> List[Dict]:
@@ -69,6 +72,11 @@ class MarketScreener:
             else:
                 self.logger.warning("AUTO mode selected but Claude not available, using mean_reversion")
                 mode = "mean_reversion"
+
+        # Track the selected mode in bot instance
+        if self.bot:
+            self.bot.current_screener_mode = mode
+            self.bot.last_screener_mode_update = datetime.now()
 
         coins = self.config.get("screener_coins", [])
 
