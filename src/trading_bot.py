@@ -316,8 +316,8 @@ class TradingBot:
         if schedule in ["hourly", "two_hourly", "four_hourly", "six_hourly", "twice_daily"]:
             if not self.last_analysis_time:
                 return True
-            # Time check already done above, don't run
-            return False
+            # Time check already done above - if we got here, enough time has passed
+            return True
 
         # Check if it's the scheduled time (for daily)
         if schedule == "daily":
