@@ -792,10 +792,17 @@ class TradingBot:
             analysis = data.get("analysis", {})
             timestamp = data.get("timestamp")
 
+            # Extract sentiment from market_assessment (Claude returns it as an object)
+            market_assessment = analysis.get("market_assessment", {})
+            regime = market_assessment.get("regime", "Unknown")
+
+            # Capitalize for display (bull -> Bull, bear -> Bear, sideways -> Sideways)
+            sentiment = regime.capitalize() if regime != "Unknown" else "Unknown"
+
             # Extract key information
             summary = {
                 "timestamp": timestamp,
-                "sentiment": analysis.get("market_sentiment", "Unknown"),
+                "sentiment": sentiment,
                 "recommendation_count": len(analysis.get("recommended_actions", [])),
                 "top_recommendations": []
             }
@@ -805,7 +812,7 @@ class TradingBot:
                 summary["top_recommendations"].append({
                     "coin": rec.get("coin", "Unknown"),
                     "action": rec.get("action", "hold"),
-                    "confidence": rec.get("confidence", 0)
+                    "confidence": rec.get("conviction", rec.get("confidence", 0))  # Try conviction first (Claude's format), fall back to confidence
                 })
 
             return summary
@@ -850,6 +857,30 @@ class TradingBot:
         except Exception as e:
             self.logger.error(f"Error loading screener summary: {e}")
             return None
+
+    def _save_claude_analysis(self, analysis: Dict):
+        """Save Claude analysis to file for web dashboard"""
+        try:
+            import json
+            import os
+            from src.claude_analyst import convert_numpy_types
+
+            # Convert numpy types for JSON serialization
+            clean_analysis = convert_numpy_types(analysis)
+
+            result = {
+                "timestamp": datetime.now(self.timezone).isoformat(),
+                "analysis": clean_analysis
+            }
+
+            os.makedirs("data", exist_ok=True)
+            with open("data/latest_claude_analysis.json", "w") as f:
+                json.dump(result, f, indent=2)
+
+            self.logger.info("Saved Claude analysis to data/latest_claude_analysis.json")
+
+        except Exception as e:
+            self.logger.error(f"Error saving Claude analysis: {e}")
 
     def _save_screener_results(self, opportunities: List[Dict]):
         """Save screener results to file for web dashboard"""
