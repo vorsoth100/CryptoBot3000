@@ -1047,6 +1047,415 @@ def main():
     socketio.run(app, host='0.0.0.0', port=8779, debug=False, allow_unsafe_werkzeug=True)
 
 
+@app.route('/api/debug/intelligence-export', methods=['POST'])
+def intelligence_export():
+    """
+    Comprehensive intelligence export for AI analysis
+    Returns complete snapshot of bot state, decisions, and results
+    """
+    try:
+        data = request.get_json() or {}
+        time_range_hours = int(data.get('time_range', 24))
+        output_format = data.get('format', 'json')  # 'json' or 'markdown'
+
+        from datetime import timedelta
+
+        # Calculate cutoff time
+        cutoff_time = datetime.now() - timedelta(hours=time_range_hours)
+
+        intelligence_data = {
+            "meta": {
+                "export_timestamp": datetime.now(EASTERN).strftime('%Y-%m-%d %H:%M:%S %Z'),
+                "bot_version": __version__,
+                "time_range_hours": time_range_hours,
+                "time_range_start": cutoff_time.strftime('%Y-%m-%d %H:%M:%S'),
+                "timezone": "US/Eastern"
+            }
+        }
+
+        # === 1. CURRENT CONFIGURATION & STRATEGY ===
+        try:
+            config_file = "data/config.json"
+            if os.path.exists(config_file):
+                with open(config_file, 'r') as f:
+                    config = json.load(f)
+                    intelligence_data["configuration"] = {
+                        "trading_parameters": {
+                            "initial_capital": config.get("initial_capital"),
+                            "max_positions": config.get("max_positions"),
+                            "position_size_pct": config.get("position_size_pct"),
+                            "stop_loss_pct": config.get("stop_loss_pct"),
+                            "take_profit_pct": config.get("take_profit_pct"),
+                            "max_daily_loss_pct": config.get("max_daily_loss_pct"),
+                            "max_drawdown_pct": config.get("max_drawdown_pct"),
+                            "trailing_stop_enabled": config.get("trailing_stop_enabled"),
+                            "trailing_stop_activation_pct": config.get("trailing_stop_activation_pct"),
+                            "trailing_stop_distance_pct": config.get("trailing_stop_distance_pct")
+                        },
+                        "screener_settings": {
+                            "mode": config.get("screener_mode"),
+                            "max_results": config.get("screener_max_results"),
+                            "monitored_coins": config.get("screener_coins", []),
+                            "coin_count": len(config.get("screener_coins", []))
+                        },
+                        "claude_ai_settings": {
+                            "enabled": config.get("claude_enabled"),
+                            "analysis_mode": config.get("claude_analysis_mode"),
+                            "prompt_strategy": config.get("claude_prompt_strategy"),
+                            "confidence_threshold": config.get("claude_confidence_threshold"),
+                            "risk_tolerance": config.get("claude_risk_tolerance"),
+                            "analysis_schedule": config.get("claude_analysis_schedule"),
+                            "max_trade_suggestions": config.get("claude_max_trade_suggestions")
+                        },
+                        "data_sources": {
+                            "news_sentiment_enabled": config.get("news_sentiment_enabled"),
+                            "coingecko_enabled": config.get("coingecko_enabled")
+                        },
+                        "mode": "DRY_RUN" if config.get("dry_run") else "LIVE_TRADING"
+                    }
+        except Exception as e:
+            intelligence_data["configuration"] = {"error": str(e)}
+
+        # === 2. CURRENT PORTFOLIO STATE ===
+        try:
+            if bot and hasattr(bot, 'risk_manager'):
+                rm = bot.risk_manager
+                intelligence_data["portfolio_state"] = {
+                    "current_capital": rm.current_capital,
+                    "initial_capital": rm.initial_capital,
+                    "total_pnl": rm.current_capital - rm.initial_capital,
+                    "total_pnl_pct": ((rm.current_capital - rm.initial_capital) / rm.initial_capital * 100) if rm.initial_capital > 0 else 0,
+                    "daily_pnl": rm.daily_pnl,
+                    "daily_trades": rm.daily_trades,
+                    "total_drawdown": rm.total_drawdown,
+                    "open_positions_count": len(rm.positions),
+                    "open_positions": [
+                        {
+                            "product_id": pos["product_id"],
+                            "quantity": pos["quantity"],
+                            "entry_price": pos["entry_price"],
+                            "current_price": pos.get("current_price"),
+                            "unrealized_pnl": pos.get("unrealized_pnl"),
+                            "unrealized_pnl_pct": pos.get("unrealized_pnl_pct"),
+                            "entry_time": pos.get("entry_time"),
+                            "stop_loss": pos.get("stop_loss"),
+                            "take_profit": pos.get("take_profit")
+                        }
+                        for pos in rm.get_all_positions()
+                    ]
+                }
+            else:
+                intelligence_data["portfolio_state"] = {"error": "Bot not running"}
+        except Exception as e:
+            intelligence_data["portfolio_state"] = {"error": str(e)}
+
+        # === 3. TRADE HISTORY (filtered by time range) ===
+        try:
+            if bot and hasattr(bot, 'performance_tracker'):
+                all_trades = bot.performance_tracker.get_all_trades()
+                recent_trades = [
+                    trade for trade in all_trades
+                    if datetime.fromisoformat(trade.get("entry_time", "1970-01-01")) >= cutoff_time
+                ]
+                intelligence_data["trade_history"] = {
+                    "total_trades_in_range": len(recent_trades),
+                    "trades": recent_trades
+                }
+            else:
+                intelligence_data["trade_history"] = {"error": "Bot not running"}
+        except Exception as e:
+            intelligence_data["trade_history"] = {"error": str(e)}
+
+        # === 4. PERFORMANCE METRICS ===
+        try:
+            if bot and hasattr(bot, 'performance_tracker'):
+                metrics = bot.performance_tracker.calculate_metrics()
+                intelligence_data["performance_metrics"] = metrics
+            else:
+                intelligence_data["performance_metrics"] = {"error": "Bot not running"}
+        except Exception as e:
+            intelligence_data["performance_metrics"] = {"error": str(e)}
+
+        # === 5. SCREENER RESULTS & DECISIONS ===
+        try:
+            # Get latest screener results
+            screener_file = "data/latest_screener.json"
+            if os.path.exists(screener_file):
+                with open(screener_file, 'r') as f:
+                    screener_data = json.load(f)
+                    intelligence_data["screener_results"] = {
+                        "timestamp": screener_data.get("timestamp"),
+                        "active_mode": screener_data.get("mode"),
+                        "opportunity_count": len(screener_data.get("opportunities", [])),
+                        "opportunities": screener_data.get("opportunities", [])
+                    }
+            else:
+                intelligence_data["screener_results"] = {"note": "No recent screener results"}
+        except Exception as e:
+            intelligence_data["screener_results"] = {"error": str(e)}
+
+        # === 6. CLAUDE AI ANALYSIS & RECOMMENDATIONS ===
+        try:
+            # Get latest Claude analysis
+            claude_file = "data/latest_claude_analysis.json"
+            if os.path.exists(claude_file):
+                with open(claude_file, 'r') as f:
+                    claude_data = json.load(f)
+                    analysis = claude_data.get("analysis", {})
+                    intelligence_data["claude_analysis"] = {
+                        "timestamp": claude_data.get("timestamp"),
+                        "market_assessment": analysis.get("market_assessment"),
+                        "recommended_actions": analysis.get("recommended_actions", []),
+                        "risk_warnings": analysis.get("risk_warnings", []),
+                        "config_suggestions": analysis.get("config_suggestions", [])
+                    }
+            else:
+                intelligence_data["claude_analysis"] = {"note": "No recent Claude analysis"}
+
+            # Get Claude analysis logs (recent)
+            claude_log = "logs/claude_analysis.log"
+            if os.path.exists(claude_log):
+                with open(claude_log, 'r') as f:
+                    content = f.read()
+                    lines = content.split('\n')
+                    recent_lines = lines[-100:]
+                    intelligence_data["claude_analysis_log"] = '\n'.join(recent_lines)
+        except Exception as e:
+            intelligence_data["claude_analysis"] = {"error": str(e)}
+
+        # === 7. MARKET CONTEXT ===
+        try:
+            if bot:
+                # Get current market data
+                market_context = {}
+
+                # Fear & Greed Index
+                if hasattr(bot, 'data_collector'):
+                    fg = bot.data_collector.get_fear_greed_index()
+                    market_context["fear_greed_index"] = fg
+
+                    # BTC price and changes
+                    btc_changes = bot.data_collector.get_price_changes("BTC-USD")
+                    market_context["btc_data"] = btc_changes
+
+                # Trending coins
+                if hasattr(bot, 'coingecko') and bot.config.get("coingecko_enabled"):
+                    trending = bot.coingecko.get_trending_coins()
+                    market_context["trending_coins"] = trending[:10] if trending else []
+
+                intelligence_data["market_context"] = market_context
+            else:
+                intelligence_data["market_context"] = {"error": "Bot not running"}
+        except Exception as e:
+            intelligence_data["market_context"] = {"error": str(e)}
+
+        # === 8. REJECTED OPPORTUNITIES (Why didn't we trade?) ===
+        try:
+            # Parse bot logs for rejected opportunities
+            bot_log_file = "logs/cryptobot.log"
+            if os.path.exists(bot_log_file):
+                with open(bot_log_file, 'r') as f:
+                    content = f.read()
+                    lines = content.split('\n')
+
+                    # Look for rejection reasons in recent logs
+                    rejection_keywords = ["rejected", "skipped", "blocked", "failed", "insufficient"]
+                    rejections = []
+                    for line in lines[-500:]:  # Last 500 lines
+                        if any(keyword in line.lower() for keyword in rejection_keywords):
+                            rejections.append(line)
+
+                    intelligence_data["rejected_opportunities"] = {
+                        "count": len(rejections),
+                        "reasons": rejections[-50:]  # Last 50 rejections
+                    }
+        except Exception as e:
+            intelligence_data["rejected_opportunities"] = {"error": str(e)}
+
+        # === 9. BOT DECISION LOG (Recent actions) ===
+        try:
+            bot_log_file = "logs/cryptobot.log"
+            if os.path.exists(bot_log_file):
+                with open(bot_log_file, 'r') as f:
+                    content = f.read()
+                    lines = content.split('\n')
+                    intelligence_data["bot_decision_log"] = '\n'.join(lines[-200:])
+        except Exception as e:
+            intelligence_data["bot_decision_log"] = {"error": str(e)}
+
+        # === Convert to Markdown if requested ===
+        if output_format == 'markdown':
+            markdown_content = _convert_to_markdown(intelligence_data)
+            return jsonify({"format": "markdown", "content": markdown_content})
+        else:
+            return jsonify({"format": "json", "content": intelligence_data})
+
+    except Exception as e:
+        return jsonify({"error": f"Intelligence export failed: {str(e)}"}), 500
+
+
+def _convert_to_markdown(data: dict) -> str:
+    """Convert intelligence data to markdown format"""
+    md = []
+
+    md.append("# 🧠 CryptoBot Intelligence Export\n")
+    md.append(f"**Generated:** {data['meta']['export_timestamp']}")
+    md.append(f"**Bot Version:** {data['meta']['bot_version']}")
+    md.append(f"**Time Range:** Last {data['meta']['time_range_hours']} hours")
+    md.append(f"**Analysis Period:** {data['meta']['time_range_start']} to present\n")
+    md.append("---\n")
+
+    # Configuration
+    if "configuration" in data:
+        md.append("## 📋 Current Configuration & Strategy\n")
+        config = data["configuration"]
+
+        if "trading_parameters" in config:
+            md.append("### Trading Parameters")
+            tp = config["trading_parameters"]
+            md.append(f"- **Initial Capital:** ${tp.get('initial_capital', 0):,.2f}")
+            md.append(f"- **Max Positions:** {tp.get('max_positions')}")
+            md.append(f"- **Position Size:** {tp.get('position_size_pct', 0)*100:.1f}%")
+            md.append(f"- **Stop Loss:** {tp.get('stop_loss_pct', 0)*100:.1f}%")
+            md.append(f"- **Take Profit:** {tp.get('take_profit_pct', 0)*100:.1f}%")
+            md.append(f"- **Max Daily Loss:** {tp.get('max_daily_loss_pct', 0)*100:.1f}%")
+            md.append(f"- **Max Drawdown:** {tp.get('max_drawdown_pct', 0)*100:.1f}%")
+            md.append(f"- **Trailing Stop:** {'Enabled' if tp.get('trailing_stop_enabled') else 'Disabled'}\n")
+
+        if "screener_settings" in config:
+            md.append("### Screener Settings")
+            ss = config["screener_settings"]
+            md.append(f"- **Mode:** {ss.get('mode')}")
+            md.append(f"- **Max Results:** {ss.get('max_results')}")
+            md.append(f"- **Monitored Coins:** {ss.get('coin_count')} coins\n")
+
+        if "claude_ai_settings" in config:
+            md.append("### Claude AI Settings")
+            cs = config["claude_ai_settings"]
+            md.append(f"- **Enabled:** {cs.get('enabled')}")
+            md.append(f"- **Mode:** {cs.get('analysis_mode')}")
+            md.append(f"- **Prompt Strategy:** {cs.get('prompt_strategy')}")
+            md.append(f"- **Confidence Threshold:** {cs.get('confidence_threshold')}%")
+            md.append(f"- **Risk Tolerance:** {cs.get('risk_tolerance')}")
+            md.append(f"- **Schedule:** {cs.get('analysis_schedule')}\n")
+
+    # Portfolio State
+    if "portfolio_state" in data and "error" not in data["portfolio_state"]:
+        md.append("## 💰 Current Portfolio State\n")
+        ps = data["portfolio_state"]
+        md.append(f"- **Current Capital:** ${ps.get('current_capital', 0):,.2f}")
+        md.append(f"- **Initial Capital:** ${ps.get('initial_capital', 0):,.2f}")
+        md.append(f"- **Total P&L:** ${ps.get('total_pnl', 0):+,.2f} ({ps.get('total_pnl_pct', 0):+.2f}%)")
+        md.append(f"- **Daily P&L:** ${ps.get('daily_pnl', 0):+,.2f}")
+        md.append(f"- **Daily Trades:** {ps.get('daily_trades', 0)}")
+        md.append(f"- **Total Drawdown:** {ps.get('total_drawdown', 0):.2f}%")
+        md.append(f"- **Open Positions:** {ps.get('open_positions_count', 0)}\n")
+
+        if ps.get('open_positions'):
+            md.append("### Open Positions")
+            for pos in ps['open_positions']:
+                md.append(f"\n**{pos['product_id']}:**")
+                md.append(f"- Entry: ${pos['entry_price']:,.2f}")
+                md.append(f"- Current: ${pos.get('current_price', 0):,.2f}")
+                md.append(f"- P&L: ${pos.get('unrealized_pnl', 0):+,.2f} ({pos.get('unrealized_pnl_pct', 0):+.2f}%)")
+
+    # Trade History
+    if "trade_history" in data and "error" not in data["trade_history"]:
+        md.append(f"\n## 📊 Trade History ({data['trade_history'].get('total_trades_in_range', 0)} trades)\n")
+        trades = data["trade_history"].get("trades", [])
+        for i, trade in enumerate(trades[:10], 1):  # Show first 10
+            md.append(f"\n### Trade #{i}: {trade.get('product_id')}")
+            md.append(f"- **Action:** {trade.get('action')}")
+            md.append(f"- **Entry:** ${trade.get('entry_price', 0):,.2f} @ {trade.get('entry_time')}")
+            md.append(f"- **Exit:** ${trade.get('exit_price', 0):,.2f} @ {trade.get('exit_time')}")
+            md.append(f"- **P&L:** ${trade.get('pnl', 0):+,.2f} ({trade.get('pnl_pct', 0):+.2f}%)")
+            md.append(f"- **Reason:** {trade.get('exit_reason', 'N/A')}")
+
+    # Screener Results
+    if "screener_results" in data and "error" not in data["screener_results"]:
+        md.append(f"\n## 🔍 Latest Screener Results\n")
+        sr = data["screener_results"]
+        md.append(f"- **Timestamp:** {sr.get('timestamp')}")
+        md.append(f"- **Active Mode:** {sr.get('active_mode')}")
+        md.append(f"- **Opportunities Found:** {sr.get('opportunity_count')}\n")
+
+        if sr.get('opportunities'):
+            md.append("### Top Opportunities")
+            for opp in sr['opportunities'][:5]:
+                md.append(f"\n**{opp.get('product_id')}:**")
+                md.append(f"- Score: {opp.get('score', 0):.1f}")
+                md.append(f"- Signal: {opp.get('signal')}")
+                md.append(f"- Confidence: {opp.get('confidence', 0)}%")
+                md.append(f"- Price: ${opp.get('price', 0):,.2f}")
+                md.append(f"- 24h Change: {opp.get('price_change_24h', 0):+.2f}%")
+
+    # Claude Analysis
+    if "claude_analysis" in data and "error" not in data["claude_analysis"]:
+        md.append("\n## 🤖 Claude AI Analysis\n")
+        ca = data["claude_analysis"]
+        md.append(f"- **Timestamp:** {ca.get('timestamp')}\n")
+
+        if "market_assessment" in ca and ca["market_assessment"]:
+            ma = ca["market_assessment"]
+            md.append("### Market Assessment")
+            md.append(f"- **Regime:** {ma.get('regime', 'N/A').upper()}")
+            md.append(f"- **Confidence:** {ma.get('confidence', 0)}%")
+            md.append(f"- **Risk Level:** {ma.get('risk_level', 'N/A').upper()}\n")
+
+            if ma.get('key_factors'):
+                md.append("**Key Factors:**")
+                for factor in ma['key_factors']:
+                    md.append(f"- {factor}")
+
+        if ca.get('recommended_actions'):
+            md.append("\n### Recommended Actions")
+            for i, rec in enumerate(ca['recommended_actions'], 1):
+                md.append(f"\n**Recommendation #{i}:**")
+                md.append(f"- **Coin:** {rec.get('coin')}")
+                md.append(f"- **Action:** {rec.get('action').upper()}")
+                md.append(f"- **Conviction:** {rec.get('conviction', 0)}%")
+                md.append(f"- **Entry:** ${rec.get('target_entry', 0):,.2f}")
+                md.append(f"- **Stop Loss:** ${rec.get('stop_loss', 0):,.2f}")
+                md.append(f"- **Take Profit:** {rec.get('take_profit', [])}")
+                md.append(f"- **Reasoning:** {rec.get('reasoning', 'N/A')}")
+
+        if ca.get('risk_warnings'):
+            md.append("\n### ⚠️ Risk Warnings")
+            for warning in ca['risk_warnings']:
+                md.append(f"- {warning}")
+
+    # Market Context
+    if "market_context" in data and "error" not in data["market_context"]:
+        md.append("\n## 🌍 Market Context\n")
+        mc = data["market_context"]
+
+        if "fear_greed_index" in mc and mc["fear_greed_index"]:
+            fg = mc["fear_greed_index"]
+            md.append(f"- **Fear & Greed Index:** {fg.get('value')} ({fg.get('classification')})")
+
+        if "btc_data" in mc and mc["btc_data"]:
+            btc = mc["btc_data"]
+            md.append(f"- **BTC Price:** ${btc.get('price', 0):,.2f}")
+            md.append(f"- **BTC 24h Change:** {btc.get('price_change_24h', 0):+.2f}%")
+            md.append(f"- **BTC 7d Change:** {btc.get('price_change_7d', 0):+.2f}%")
+
+    # Performance Metrics
+    if "performance_metrics" in data and "error" not in data["performance_metrics"]:
+        md.append("\n## 📈 Performance Metrics\n")
+        pm = data["performance_metrics"]
+        md.append(f"- **Total Trades:** {pm.get('total_trades', 0)}")
+        md.append(f"- **Win Rate:** {pm.get('win_rate', 0):.1f}%")
+        md.append(f"- **Average Win:** {pm.get('avg_win', 0):.2f}%")
+        md.append(f"- **Average Loss:** {pm.get('avg_loss', 0):.2f}%")
+        md.append(f"- **Profit Factor:** {pm.get('profit_factor', 0):.2f}")
+        md.append(f"- **Sharpe Ratio:** {pm.get('sharpe_ratio', 0):.2f}")
+
+    md.append("\n---\n")
+    md.append("*Generated by CryptoBot Intelligence Export*")
+
+    return '\n'.join(md)
+
+
 @app.route('/api/tradingview/webhook', methods=['POST'])
 def tradingview_webhook():
     """

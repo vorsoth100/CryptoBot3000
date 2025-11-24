@@ -2894,3 +2894,94 @@ document.addEventListener('DOMContentLoaded', function() {
     loadPositionChart();
     loadMarketRegimeChart();
 });
+
+// === Intelligence Export Functions ===
+
+let intelligenceExportData = null;
+
+async function generateIntelligenceExport() {
+    const statusDiv = document.getElementById('intelligence-status');
+    const previewDiv = document.getElementById('intelligence-preview');
+    const contentDiv = document.getElementById('intelligence-content');
+
+    const timeRange = document.getElementById('intelligence-time-range').value;
+    const format = document.getElementById('intelligence-format').value;
+
+    statusDiv.innerHTML = '<span style="color: #ffa726;">⏳ Generating intelligence export...</span>';
+    previewDiv.style.display = 'none';
+
+    try {
+        const response = await fetch('/api/debug/intelligence-export', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                time_range: timeRange,
+                format: format
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('Export failed');
+        }
+
+        const data = await response.json();
+
+        if (data.error) {
+            statusDiv.innerHTML = `<span style="color: #f44336;">❌ Error: ${data.error}</span>`;
+            return;
+        }
+
+        // Store data globally for download
+        intelligenceExportData = data;
+
+        // Display preview
+        if (format === 'json') {
+            contentDiv.textContent = JSON.stringify(data.content, null, 2);
+        } else {
+            contentDiv.textContent = data.content;
+        }
+
+        previewDiv.style.display = 'block';
+        const formatUpper = format.toUpperCase();
+        statusDiv.innerHTML = `<span style="color: #4caf50;">✅ Export generated successfully! (${timeRange} hours, ${formatUpper} format)</span>`;
+
+    } catch (error) {
+        statusDiv.innerHTML = `<span style="color: #f44336;">❌ Error: ${error.message}</span>`;
+        console.error('Intelligence export error:', error);
+    }
+}
+
+function downloadIntelligenceExport() {
+    if (!intelligenceExportData) {
+        alert('Please generate an export first');
+        return;
+    }
+
+    const format = intelligenceExportData.format;
+    const content = format === 'json'
+        ? JSON.stringify(intelligenceExportData.content, null, 2)
+        : intelligenceExportData.content;
+
+    // Create filename with timestamp
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const filename = `cryptobot-intelligence-${timestamp}.${format === 'json' ? 'json' : 'md'}`;
+
+    // Create blob and download
+    const blob = new Blob([content], {
+        type: format === 'json' ? 'application/json' : 'text/markdown'
+    });
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    const statusDiv = document.getElementById('intelligence-status');
+    statusDiv.innerHTML = `<span style="color: #4caf50;">✅ Downloaded: ${filename}</span>`;
+}

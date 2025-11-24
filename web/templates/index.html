@@ -737,6 +737,44 @@
         <!-- Debug Tab -->
         <div id="debug-tab" class="tab-content">
             <div class="card">
+                <h2>🧠 Intelligence Export</h2>
+                <p style="color: #666; font-size: 0.9em; margin-bottom: 15px;">
+                    <strong>Complete bot snapshot for AI analysis:</strong> All configuration, strategy settings, screener results,
+                    Claude AI decisions, trade history, market context, and performance metrics. Perfect for feeding into another GenAI engine
+                    for strategy analysis and recommendations.
+                </p>
+
+                <div class="controls" style="margin-bottom: 15px;">
+                    <label style="margin-right: 10px;">Time Range:</label>
+                    <select id="intelligence-time-range" style="margin-right: 15px; padding: 5px;">
+                        <option value="1">Last 1 hour</option>
+                        <option value="6">Last 6 hours</option>
+                        <option value="24" selected>Last 24 hours</option>
+                        <option value="168">Last 7 days</option>
+                        <option value="720">Last 30 days</option>
+                    </select>
+
+                    <label style="margin-right: 10px;">Format:</label>
+                    <select id="intelligence-format" style="margin-right: 15px; padding: 5px;">
+                        <option value="json">JSON (Machine-readable)</option>
+                        <option value="markdown">Markdown (Human-readable)</option>
+                    </select>
+
+                    <button class="btn btn-success" onclick="generateIntelligenceExport()">🧠 Generate Intelligence Export</button>
+                </div>
+
+                <div id="intelligence-status" style="margin-bottom: 10px;"></div>
+
+                <div id="intelligence-preview" style="max-height: 400px; overflow-y: auto; background: #1e1e1e; padding: 15px; border-radius: 5px; display: none;">
+                    <div style="margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                        <span style="color: #888; font-size: 0.9em;">Preview (scroll to see full export)</span>
+                        <button class="btn btn-secondary" style="padding: 5px 10px;" onclick="downloadIntelligenceExport()">💾 Download File</button>
+                    </div>
+                    <pre id="intelligence-content" style="margin: 0; color: #d4d4d4; font-size: 0.85em; white-space: pre-wrap; word-wrap: break-word;"></pre>
+                </div>
+            </div>
+
+            <div class="card">
                 <h2>Data Export</h2>
                 <div class="controls">
                     <button class="btn btn-success" onclick="exportAllData()">📦 Export All Data</button>
