@@ -226,16 +226,56 @@ function updateActiveConfig(config, statusData) {
     // Helper to get strategy info (name, type, description)
     const getStrategyInfo = (mode) => {
         const strategyInfo = {
-            'auto': { name: '🤖 AUTO', type: 'AI', desc: 'AI automatically selects best strategy based on market conditions' },
-            'mean_reversion': { name: 'Mean Reversion', type: 'Bear', desc: 'Buy extreme dips (RSI <25), sell quick bounces. Best for bear/sideways markets.' },
-            'scalping': { name: 'Scalping', type: 'Bear', desc: 'Quick 1-3% moves with tight stops. Best for volatile bear markets.' },
-            'range_trading': { name: 'Range Trading', type: 'Sideways', desc: 'Buy support, sell resistance in consolidation. Best for sideways markets.' },
-            'bear_bounce': { name: 'Bear Bounce', type: 'Bear', desc: 'Catch dead cat bounces after 10-15%+ drops. High risk, tight stops.' },
-            'breakouts': { name: 'Breakouts', type: 'Bull', desc: 'High volume + momentum breakouts. Best for strong bull markets.' },
-            'momentum': { name: 'Momentum', type: 'Bull', desc: 'Hot coins with strong gains + volume spikes. Best for trending bull markets.' },
-            'trending': { name: 'Trending', type: 'Bull', desc: 'Strong uptrend + above moving averages. Best for bull markets.' },
-            'oversold': { name: 'Oversold', type: 'Universal', desc: 'RSI <30 + volume spike. Works in most market conditions.' },
-            'support': { name: 'Support', type: 'Universal', desc: 'Price near support with bullish divergence. Works in most markets.' }
+            'auto': {
+                name: '🤖 AUTO',
+                type: 'AI',
+                desc: '🤖 AI AUTO-PILOT: Claude AI analyzes current market conditions (BTC trends, Fear & Greed Index, volatility) and automatically picks the best strategy. You don\'t have to guess - the AI adapts as markets change. Perfect for hands-off trading.'
+            },
+            'mean_reversion': {
+                name: 'Mean Reversion',
+                type: 'Bear',
+                desc: '📉 MEAN REVERSION (Bear Market Strategy):\n\nWhat it does: Buys coins when they crash too hard (oversold), then sells when they bounce back up.\n\nHow it works: Waits for extreme dips (RSI below 25 = panic selling), buys the bottom, then takes quick profits on the bounce.\n\nWhy it works now: In bear/sideways markets, coins often overreact to bad news and dump hard, then bounce 5-10% as panic sellers calm down. This strategy catches those bounces.\n\nRisk: Medium. Uses stop losses to protect against further crashes.'
+            },
+            'scalping': {
+                name: 'Scalping',
+                type: 'Bear',
+                desc: '⚡ SCALPING (Quick Profit Strategy):\n\nWhat it does: Makes quick trades targeting small 1-3% gains, in and out fast.\n\nHow it works: Looks for short-term momentum shifts (MACD crossovers) with high volume spikes. Enters, takes 2-3% profit, exits immediately.\n\nWhy it works now: Volatile bear markets have lots of quick up/down swings. Perfect for grabbing small wins repeatedly instead of waiting for big moves.\n\nRisk: Medium-High. Requires tight stops and quick exits. Not for slow markets.'
+            },
+            'range_trading': {
+                name: 'Range Trading',
+                type: 'Sideways',
+                desc: '📊 RANGE TRADING (Sideways Market Strategy):\n\nWhat it does: Identifies when a coin is stuck between support (floor) and resistance (ceiling), then buys at the floor and sells at the ceiling.\n\nHow it works: Detects consolidation zones where price bounces between two levels. Buys near support, sells near resistance. Rinse and repeat.\n\nWhy it works now: When markets aren\'t trending up or down, they trade in ranges. This strategy profits from the predictable bounces.\n\nRisk: Low-Medium. Works best when markets are boring and choppy.'
+            },
+            'bear_bounce': {
+                name: 'Bear Bounce',
+                type: 'Bear',
+                desc: '🐱 BEAR BOUNCE (Dead Cat Bounce Strategy):\n\nWhat it does: Catches short-term bounces after major crashes (10-15%+ drops).\n\nHow it works: After a coin dumps hard and RSI hits extreme lows (panic selling), looks for volume spikes indicating buyers stepping in. Catches the relief rally.\n\nWhy it works now: In bear markets, coins often drop 15-20%, then bounce 5-10% as sellers take profits and bargain hunters buy. This catches those bounces.\n\nRisk: HIGH. Uses very tight stops (2-3%). If the bounce fails, exits immediately. Not for beginners.'
+            },
+            'breakouts': {
+                name: 'Breakouts',
+                type: 'Bull',
+                desc: '🚀 BREAKOUTS (Bull Market Strategy):\n\nWhat it does: Catches coins breaking out to new highs with strong volume and momentum.\n\nHow it works: Waits for price to break above resistance levels with explosive volume. This signals strong buying pressure and potential for big moves.\n\nWhy it works in bull markets: When markets are bullish, breakouts often lead to 20-50%+ runs as FOMO buyers pile in. Momentum feeds on itself.\n\nRisk: Low in bull markets, HIGH in bear markets. Don\'t use this in downtrends - breakouts often fail.'
+            },
+            'momentum': {
+                name: 'Momentum',
+                type: 'Bull',
+                desc: '🔥 MOMENTUM (Hot Coins Strategy):\n\nWhat it does: Finds "hot" trending coins with strong recent gains (5-10%+ in 24h) and high volume. Rides the trend.\n\nHow it works: Looks for coins already moving up with volume spikes and strong buy signals. Gets in on the trend before it\'s over.\n\nWhy it works in bull markets: In strong bull trends, hot coins often keep running. "The trend is your friend" - momentum continues until it doesn\'t.\n\nRisk: Medium. Needs good timing to avoid buying tops. Uses trailing stops to lock in profits.'
+            },
+            'trending': {
+                name: 'Trending',
+                type: 'Bull',
+                desc: '📈 TRENDING (Uptrend Strategy):\n\nWhat it does: Finds coins in strong uptrends trading above their moving averages (trend indicators).\n\nHow it works: Only buys coins that are clearly trending up (price above 20-day and 50-day moving averages) with positive momentum.\n\nWhy it works in bull markets: When the overall market is bullish, coins in uptrends tend to stay in uptrends. This strategy avoids falling knives.\n\nRisk: Low in bull markets. Won\'t work in bear markets - everything trends down.'
+            },
+            'oversold': {
+                name: 'Oversold',
+                type: 'Universal',
+                desc: '💎 OVERSOLD (Universal Strategy):\n\nWhat it does: Buys coins that have been heavily sold off (RSI below 30) with volume spikes, indicating potential reversal.\n\nHow it works: RSI (Relative Strength Index) measures if a coin is oversold (below 30). Combined with volume spikes, this often signals a bounce is coming.\n\nWhy it works in most markets: Oversold bounces happen in both bull and bear markets. When sellers exhaust themselves, buyers step in. Works 60-70% of the time.\n\nRisk: Medium. Sometimes "oversold" coins keep falling (catch a falling knife). Uses stops to limit damage.'
+            },
+            'support': {
+                name: 'Support',
+                type: 'Universal',
+                desc: '🛡️ SUPPORT (Support Level Strategy):\n\nWhat it does: Buys when price reaches a known support level (a price floor where buyers historically step in) with bullish indicators.\n\nHow it works: Identifies support levels from past price history. When price touches support with bullish divergence (indicators showing strength), buys the bounce.\n\nWhy it works in most markets: Support levels act like floors - price tends to bounce off them. Technical traders watch these levels and buy, creating self-fulfilling bounces.\n\nRisk: Medium. Support can break (become resistance). Uses stops below support to limit losses.'
+            }
         };
         return strategyInfo[mode] || { name: mode, type: 'Unknown', desc: 'No description available' };
     };
