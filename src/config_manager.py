@@ -33,6 +33,7 @@ class ConfigManager:
         "network_fee_buffer_usd": 10.0,
 
         # Risk Management
+        "position_size_pct": 0.10,  # 10% of capital per position (bear market default)
         "stop_loss_pct": 0.06,
         "take_profit_pct": 0.10,  # Not used when trailing stop is primary strategy
         "trailing_stop_enabled": True,  # PRIMARY EXIT METHOD: Let winners run
@@ -89,6 +90,7 @@ class ConfigManager:
         # Claude AI Analyst
         "claude_enabled": True,
         "claude_analysis_mode": "semi_autonomous",  # Changed from advisory
+        "claude_prompt_strategy": "auto",  # Auto-sync with screener strategy
         "claude_analysis_schedule": "hourly",  # Run every hour for fast markets
         "claude_analysis_time_utc": "00:00",
         "claude_confidence_threshold": 80,
@@ -160,10 +162,12 @@ class ConfigManager:
         "conservative": {
             "max_positions": 2,
             "max_position_pct": 0.20,
+            "position_size_pct": 0.08,  # 8% per position
             "stop_loss_pct": 0.07,
             "take_profit_pct": 0.12,
             "trailing_stop_activation_pct": 0.08,
             "trailing_stop_distance_pct": 0.04,
+            "claude_prompt_strategy": "auto",
             "claude_confidence_threshold": 85,
             "claude_max_trade_suggestions": 2,
             "claude_risk_tolerance": "conservative",
@@ -173,10 +177,12 @@ class ConfigManager:
         "moderate": {
             "max_positions": 3,
             "max_position_pct": 0.25,
+            "position_size_pct": 0.10,  # 10% per position
             "stop_loss_pct": 0.06,
             "take_profit_pct": 0.10,
             "trailing_stop_activation_pct": 0.05,
             "trailing_stop_distance_pct": 0.03,
+            "claude_prompt_strategy": "auto",
             "claude_confidence_threshold": 75,
             "claude_max_trade_suggestions": 3,
             "claude_risk_tolerance": "moderate",
@@ -186,10 +192,12 @@ class ConfigManager:
         "aggressive": {
             "max_positions": 4,
             "max_position_pct": 0.25,
+            "position_size_pct": 0.15,  # 15% per position
             "stop_loss_pct": 0.05,
             "take_profit_pct": 0.08,
             "trailing_stop_activation_pct": 0.03,
             "trailing_stop_distance_pct": 0.02,
+            "claude_prompt_strategy": "auto",
             "claude_confidence_threshold": 70,
             "claude_max_trade_suggestions": 4,
             "claude_risk_tolerance": "aggressive",
