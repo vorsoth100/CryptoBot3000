@@ -299,15 +299,21 @@ class TradingBot:
         if self.last_analysis_time:
             hours_since = (datetime.now() - self.last_analysis_time).total_seconds() / 3600
 
-            if schedule == "daily" and hours_since < 24:
+            if schedule == "hourly" and hours_since < 1:
                 return False
-            elif schedule == "twice_daily" and hours_since < 12:
+            elif schedule == "two_hourly" and hours_since < 2:
+                return False
+            elif schedule == "four_hourly" and hours_since < 4:
                 return False
             elif schedule == "six_hourly" and hours_since < 6:
                 return False
+            elif schedule == "twice_daily" and hours_since < 12:
+                return False
+            elif schedule == "daily" and hours_since < 24:
+                return False
 
-        # For six_hourly and twice_daily, run if no previous analysis or enough time passed
-        if schedule in ["six_hourly", "twice_daily"]:
+        # For time-based schedules (not daily with specific time), run if no previous analysis or enough time passed
+        if schedule in ["hourly", "two_hourly", "four_hourly", "six_hourly", "twice_daily"]:
             if not self.last_analysis_time:
                 return True
             # Time check already done above, don't run
