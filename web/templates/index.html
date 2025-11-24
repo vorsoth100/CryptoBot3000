@@ -391,6 +391,27 @@
                         <span class="help-text">How often Claude analyzes market and updates trade recommendations</span>
                     </div>
 
+                    <div class="form-group">
+                        <label>Claude Prompt Strategy</label>
+                        <select id="claude_prompt_strategy" name="claude_prompt_strategy">
+                            <optgroup label="Bull Market Strategies">
+                                <option value="momentum_bull">🚀 Momentum Bull - Ride hot coins with strong uptrends</option>
+                                <option value="breakout_hunter">💥 Breakout Hunter - Catch explosive moves from consolidation</option>
+                            </optgroup>
+                            <optgroup label="Bear Market Strategies">
+                                <option value="bear_survival">🐻 Bear Survival - Preserve capital, catch quick bounces</option>
+                                <option value="dip_buying">💎 Dip Buying - Buy panic sells in quality coins</option>
+                            </optgroup>
+                            <optgroup label="Sideways Market Strategies">
+                                <option value="range_scalping">📊 Range Scalping - Buy support, sell resistance</option>
+                            </optgroup>
+                            <optgroup label="Conservative">
+                                <option value="conservative">🛡️ Conservative - High probability, low risk trades only</option>
+                            </optgroup>
+                        </select>
+                        <span class="help-text">Choose the trading strategy Claude uses for analysis. Each strategy has different entry criteria, targets, and risk parameters optimized for specific market conditions.</span>
+                    </div>
+
                     <h3 style="margin-top: 30px; margin-bottom: 15px; border-bottom: 2px solid #38444d; padding-bottom: 10px;">Screener Settings</h3>
 
                     <div class="form-group">

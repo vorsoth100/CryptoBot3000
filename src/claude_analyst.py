@@ -120,6 +120,151 @@ class ClaudeAnalyst:
             self.logger.error(f"Error getting Claude analysis: {e}")
             return None
 
+    def _get_strategy_prompt(self, strategy: str) -> str:
+        """Get strategy-specific prompt section"""
+
+        strategies = {
+            'momentum_bull': {
+                'goal': 'MOMENTUM BULL MARKET: Ride hot coins with strong uptrends',
+                'strategy': '''**TRADING STRATEGY (MOMENTUM BULL):**
+- PRIORITY: Identify coins with explosive momentum (volume spikes + strong gains)
+- Look for coins up 10-20% in 24h with 2x+ volume (catching the wave early)
+- Prefer coins breaking resistance levels with high volume confirmation
+- Enter on strength with tight trailing stops to lock in gains
+- Target quick 15-30% gains, exit on first sign of weakness
+- RSI can be 70+ (momentum is king in bull markets)
+
+**WHAT MAKES A GOOD TRADE:**
+- Coin up 10-20% in 24h (strong momentum, not parabolic yet)
+- Volume 3x+ average (institutional/whale accumulation)
+- Breaking above previous resistance with conviction
+- Positive news catalyst or trending on social media
+- Technical signal: STRONG_BUY with high volume
+- RSI 60-80 (strong momentum, room to run)''',
+                'targets': '15% (TP1), 25% (TP2), 35% (TP3)',
+                'stop_loss': '5% below entry (tight stops for momentum)',
+                'position_size': '20-30% of capital (aggressive in bull markets)',
+                'conviction_threshold': 75
+            },
+
+            'bear_survival': {
+                'goal': 'BEAR MARKET SURVIVAL: Preserve capital and catch quick bounces',
+                'strategy': '''**TRADING STRATEGY (BEAR SURVIVAL):**
+- PRIORITY: Capital preservation first, opportunistic bounces second
+- Look for oversold coins (RSI <25) with volume capitulation
+- Wait for signs of reversal: bullish divergence, hammer candles, volume spike
+- Enter ONLY on confirmed bounce with tight stops
+- Target quick 5-10% gains, exit immediately on weakness
+- Avoid falling knives - wait for price stabilization first
+
+**WHAT MAKES A GOOD TRADE:**
+- Coin down 20-30% in recent days (extreme oversold)
+- RSI <25 with bullish divergence forming
+- Volume spike on green candle (buyers stepping in)
+- Bouncing off major support level (previous low, MA200)
+- First green day after 5+ red days
+- News sentiment improving from very negative to neutral''',
+                'targets': '5% (TP1), 8% (TP2), 12% (TP3)',
+                'stop_loss': '4% below entry (very tight in bear markets)',
+                'position_size': '10-15% of capital (defensive sizing)',
+                'conviction_threshold': 85
+            },
+
+            'range_scalping': {
+                'goal': 'RANGE TRADING: Scalp bounces in sideways/choppy markets',
+                'strategy': '''**TRADING STRATEGY (RANGE SCALPING):**
+- PRIORITY: Buy support, sell resistance in established ranges
+- Identify coins in clear consolidation (trading in 10-15% range for 7+ days)
+- Enter near bottom of range (support + oversold RSI)
+- Exit near top of range (resistance + overbought RSI)
+- Target quick 3-8% moves, multiple trades per day
+- Avoid range breakouts - stick to the pattern
+
+**WHAT MAKES A GOOD TRADE:**
+- Coin trading in clear range for 7+ days
+- Price near support (bottom 20% of range)
+- RSI <35 at support, or RSI >65 at resistance
+- Volume decreasing (consolidation, not distribution)
+- Bollinger Bands squeezing (low volatility, mean reversion likely)
+- Clear support/resistance levels visible on chart''',
+                'targets': '3% (TP1), 5% (TP2), 8% (TP3)',
+                'stop_loss': '3% below support (or above resistance for shorts)',
+                'position_size': '15-20% of capital (moderate risk)',
+                'conviction_threshold': 70
+            },
+
+            'breakout_hunter': {
+                'goal': 'BREAKOUT HUNTING: Catch explosive moves from consolidation',
+                'strategy': '''**TRADING STRATEGY (BREAKOUT HUNTING):**
+- PRIORITY: Identify coins breaking out of consolidation with volume
+- Look for consolidation patterns: triangles, flags, pennants (7+ days)
+- Wait for breakout above resistance with 2x+ volume spike
+- Enter on breakout or first pullback to broken resistance (now support)
+- Target 20-40% moves to next major resistance
+- Use trailing stops to ride the move
+
+**WHAT MAKES A GOOD TRADE:**
+- Coin consolidating in tight range for 10+ days
+- Breaking above resistance with 3x+ volume spike
+- No major resistance overhead (clear path higher)
+- Positive news catalyst or sector rotation
+- Technical signal: STRONG_BUY with volume confirmation
+- RSI breaking above 60 (momentum shift confirmed)''',
+                'targets': '12% (TP1), 25% (TP2), 40% (TP3)',
+                'stop_loss': '6% below breakout level',
+                'position_size': '20-25% of capital (aggressive on confirmed breakouts)',
+                'conviction_threshold': 80
+            },
+
+            'dip_buying': {
+                'goal': 'DIP BUYING: Buy panic sells in quality coins',
+                'strategy': '''**TRADING STRATEGY (DIP BUYING):**
+- PRIORITY: Buy quality coins during irrational panic selling
+- Focus on established coins (BTC, ETH, top 20 by market cap)
+- Look for 15-25% drops on no fundamental news (market-wide panic)
+- Wait for volume capitulation (selling exhaustion)
+- Enter when RSI <20 and price hits major support
+- Target return to mean (pre-dump levels)
+
+**WHAT MAKES A GOOD TRADE:**
+- Quality coin (top 50 market cap) down 20%+ in 24-48h
+- No negative fundamental news (just market panic)
+- RSI <20 with bullish divergence starting
+- Hitting major support: MA200, previous major low
+- Volume spike on selling (capitulation, not start of dump)
+- Fear & Greed Index <20 (extreme fear)''',
+                'targets': '10% (TP1), 18% (TP2), 25% (TP3)',
+                'stop_loss': '8% below entry (panic can continue)',
+                'position_size': '15-20% of capital (quality coins only)',
+                'conviction_threshold': 80
+            },
+
+            'conservative': {
+                'goal': 'CONSERVATIVE APPROACH: High probability, low risk trades only',
+                'strategy': '''**TRADING STRATEGY (CONSERVATIVE):**
+- PRIORITY: Capital preservation and consistent small gains
+- Only trade top 10 coins by market cap (BTC, ETH, BNB, etc)
+- Multiple confirmations required: technicals + news + volume
+- Enter only with strong confluence of signals
+- Target modest 8-15% gains per trade
+- Use wide stops to avoid noise (8-10%)
+
+**WHAT MAKES A GOOD TRADE:**
+- Top 10 coin with clear technical setup
+- All indicators aligned: RSI, MACD, MA crossover
+- Positive or neutral news sentiment (>0%)
+- Volume confirming direction (2x+ on breakout)
+- Clear support/resistance levels for entry/exit
+- Risk/reward ratio >2:1 minimum''',
+                'targets': '8% (TP1), 12% (TP2), 18% (TP3)',
+                'stop_loss': '8% below entry (wide stops for patience)',
+                'position_size': '15-20% of capital (never >25%)',
+                'conviction_threshold': 85
+            }
+        }
+
+        return strategies.get(strategy, strategies['momentum_bull'])
+
     def _build_analysis_prompt(self, context: Dict) -> str:
         """Build analysis prompt from context"""
 
@@ -136,9 +281,17 @@ class ClaudeAnalyst:
         total_pnl = total_value - initial_capital
         total_pnl_pct = (total_pnl / initial_capital * 100) if initial_capital > 0 else 0
 
-        prompt = f"""You are an expert cryptocurrency trader with a focus on PROFIT MAXIMIZATION and MOMENTUM TRADING. You're managing a bot with ${initial_capital:.2f} initial capital on Coinbase Advanced Trade.
+        # Get selected prompt strategy
+        prompt_strategy = self.config.get('claude_prompt_strategy', 'momentum_bull')
 
-**YOUR PRIMARY GOAL: GROW CAPITAL STEADILY THROUGH HOT COIN MOMENTUM PLAYS**
+        # Build the strategy-specific section
+        strategy_info = self._get_strategy_prompt(prompt_strategy)
+
+        prompt = f"""You are an expert cryptocurrency trader managing a bot with ${initial_capital:.2f} initial capital on Coinbase Advanced Trade.
+
+**YOUR PRIMARY GOAL: {strategy_info['goal']}**
+
+{strategy_info['strategy']}
 
 **CRITICAL CONSTRAINTS:**
 - Initial Capital: ${initial_capital:.2f} USD
@@ -148,13 +301,6 @@ class ClaudeAnalyst:
 - Stop loss: {self.config.get('stop_loss_pct', 0.06) * 100}% per position
 - Maximum drawdown: {self.config.get('max_drawdown_pct', 0.20) * 100}%
 - Risk tolerance: {self.config.get('claude_risk_tolerance', 'moderate')}
-
-**TRADING STRATEGY:**
-- PRIORITY: Identify "hot" coins with strong momentum (volume spikes + price gains)
-- Look for coins up 5-15% in 24h with high volume (not yet overbought)
-- Prefer established coins (BTC, ETH, SOL) but don't ignore trending alts
-- Enter on strength, exit on weakness or profit targets
-- Use tight stops to minimize losses, let winners run with trailing stops
 
 **CURRENT PORTFOLIO STATUS:**
 - Available Capital: ${balance_usd:.2f} USD
@@ -230,14 +376,13 @@ Provide a comprehensive analysis in JSON format with:
    }}
 ]
 
-**DECISION-MAKING FRAMEWORK:**
-1. **SCAN SCREENER RESULTS** - Look for coins with high scores and momentum indicators
+**DECISION-MAKING FRAMEWORK FOR THIS STRATEGY:**
+1. **SCAN SCREENER RESULTS** - Look for coins matching the strategy criteria above
 2. **CHECK NEWS SENTIMENT** - Avoid coins with negative news (<-30%), favor coins with positive catalysts (>+50%)
-3. **IDENTIFY HOT COINS** - Volume spikes + positive price action + not overbought + positive news sentiment
-4. **CONVICTION THRESHOLD** - Only recommend trades with >{self.config.get('claude_confidence_threshold', 80)}% conviction
-5. **POSITION SIZING** - Suggest 15-25% of capital per trade (higher for high conviction + positive sentiment)
-6. **PROFIT TARGETS** - Set realistic targets: 10% (TP1), 20% (TP2), 30% (TP3)
-7. **RISK MANAGEMENT** - Always set stop loss at 6% below entry
+3. **CONVICTION THRESHOLD** - Only recommend trades with >{strategy_info['conviction_threshold']}% conviction
+4. **POSITION SIZING** - {strategy_info['position_size']}
+5. **PROFIT TARGETS** - {strategy_info['targets']}
+6. **STOP LOSS** - {strategy_info['stop_loss']}
 
 **NEWS SENTIMENT GUIDELINES:**
 - AVOID coins with sentiment < -30% (negative news risk)
@@ -251,15 +396,8 @@ Provide a comprehensive analysis in JSON format with:
 - For smaller alts, reduce position size to 15% of capital
 - If market regime is clearly bearish AND no strong momentum plays, suggest HOLD
 - If current drawdown >{self.config.get('max_drawdown_pct', 0.20) * 0.75 * 100}%, reduce position sizes by 50%
-- You're in SEMI-AUTONOMOUS mode - trades with >80% conviction WILL BE AUTO-EXECUTED
-- Be aggressive on opportunities but ruthless on risk management
-
-**WHAT MAKES A GOOD TRADE:**
-- Coin up 5-15% in 24h (momentum but not parabolic)
-- Volume 2x+ average (institutional interest)
-- RSI 50-70 (strong but not overbought)
-- Technical signal: BUY or STRONG_BUY
-- Clear support levels visible for stop placement
+- You're in {self.config.get('claude_analysis_mode', 'semi_autonomous').upper()} mode
+- Follow the strategy guidelines above for this specific market regime
 
 Return ONLY valid JSON, no additional text."""
 
