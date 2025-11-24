@@ -699,7 +699,7 @@ async function loadConfig() {
         document.getElementById('claude_max_trade_suggestions').value = config.claude_max_trade_suggestions || 3;
         document.getElementById('claude_risk_tolerance').value = config.claude_risk_tolerance || 'moderate';
         document.getElementById('claude_analysis_schedule').value = config.claude_analysis_schedule || 'hourly';
-        document.getElementById('claude_prompt_strategy').value = config.claude_prompt_strategy || 'momentum_bull';
+        document.getElementById('claude_prompt_strategy').value = config.claude_prompt_strategy || 'auto';
 
         // Screener Settings
         document.getElementById('screener_mode').value = config.screener_mode || 'auto';

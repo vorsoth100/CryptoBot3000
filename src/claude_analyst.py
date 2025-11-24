@@ -120,6 +120,30 @@ class ClaudeAnalyst:
             self.logger.error(f"Error getting Claude analysis: {e}")
             return None
 
+    def _map_screener_to_prompt(self, screener_mode: str) -> str:
+        """Map screener mode to matching Claude prompt strategy"""
+        mapping = {
+            # Bull market screeners
+            'breakouts': 'breakout_hunter',
+            'momentum': 'momentum_bull',
+            'trending': 'momentum_bull',
+
+            # Bear market screeners
+            'oversold': 'dip_buying',
+            'bear_bounce': 'bear_survival',
+            'mean_reversion': 'bear_survival',
+
+            # Sideways market screeners
+            'scalping': 'range_scalping',
+            'range_trading': 'range_scalping',
+            'support': 'range_scalping',
+
+            # Default/Auto
+            'auto': 'momentum_bull'
+        }
+
+        return mapping.get(screener_mode, 'momentum_bull')
+
     def _get_strategy_prompt(self, strategy: str) -> str:
         """Get strategy-specific prompt section"""
 
@@ -282,7 +306,13 @@ class ClaudeAnalyst:
         total_pnl_pct = (total_pnl / initial_capital * 100) if initial_capital > 0 else 0
 
         # Get selected prompt strategy
-        prompt_strategy = self.config.get('claude_prompt_strategy', 'momentum_bull')
+        prompt_strategy = self.config.get('claude_prompt_strategy', 'auto')
+
+        # AUTO mode: Match screener strategy
+        if prompt_strategy == 'auto':
+            screener_mode = self.config.get('screener_mode', 'mean_reversion')
+            prompt_strategy = self._map_screener_to_prompt(screener_mode)
+            self.logger.info(f"AUTO mode: Using '{prompt_strategy}' prompt to match '{screener_mode}' screener")
 
         # Build the strategy-specific section
         strategy_info = self._get_strategy_prompt(prompt_strategy)
