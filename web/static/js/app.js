@@ -223,21 +223,26 @@ function updateActiveConfig(config, statusData) {
         return scheduleMap[schedule] || schedule;
     };
 
-    // Helper to format mode display
-    const formatMode = (mode) => {
-        const modeMap = {
-            'auto': '🤖 AUTO',
-            'mean_reversion': 'Mean Reversion',
-            'scalping': 'Scalping',
-            'range_trading': 'Range Trading',
-            'bear_bounce': 'Bear Bounce',
-            'breakouts': 'Breakouts',
-            'momentum': 'Momentum',
-            'trending': 'Trending',
-            'oversold': 'Oversold',
-            'support': 'Support'
+    // Helper to get strategy info (name, type, description)
+    const getStrategyInfo = (mode) => {
+        const strategyInfo = {
+            'auto': { name: '🤖 AUTO', type: 'AI', desc: 'AI automatically selects best strategy based on market conditions' },
+            'mean_reversion': { name: 'Mean Reversion', type: 'Bear', desc: 'Buy extreme dips (RSI <25), sell quick bounces. Best for bear/sideways markets.' },
+            'scalping': { name: 'Scalping', type: 'Bear', desc: 'Quick 1-3% moves with tight stops. Best for volatile bear markets.' },
+            'range_trading': { name: 'Range Trading', type: 'Sideways', desc: 'Buy support, sell resistance in consolidation. Best for sideways markets.' },
+            'bear_bounce': { name: 'Bear Bounce', type: 'Bear', desc: 'Catch dead cat bounces after 10-15%+ drops. High risk, tight stops.' },
+            'breakouts': { name: 'Breakouts', type: 'Bull', desc: 'High volume + momentum breakouts. Best for strong bull markets.' },
+            'momentum': { name: 'Momentum', type: 'Bull', desc: 'Hot coins with strong gains + volume spikes. Best for trending bull markets.' },
+            'trending': { name: 'Trending', type: 'Bull', desc: 'Strong uptrend + above moving averages. Best for bull markets.' },
+            'oversold': { name: 'Oversold', type: 'Universal', desc: 'RSI <30 + volume spike. Works in most market conditions.' },
+            'support': { name: 'Support', type: 'Universal', desc: 'Price near support with bullish divergence. Works in most markets.' }
         };
-        return modeMap[mode] || mode;
+        return strategyInfo[mode] || { name: mode, type: 'Unknown', desc: 'No description available' };
+    };
+
+    // Helper to format mode display (name only)
+    const formatMode = (mode) => {
+        return getStrategyInfo(mode).name;
     };
 
     // Helper to format Claude mode display
@@ -266,15 +271,36 @@ function updateActiveConfig(config, statusData) {
         }
     };
 
-    // Update screener mode display
+    // Update screener mode display with Bear/Bull label and tooltip
     const screenerModeEl = document.getElementById('config-screener-mode');
     if (screenerModeEl) {
-        if (config.mode_display) {
-            screenerModeEl.textContent = config.mode_display;
-        } else if (config.screener_mode === 'auto' && config.active_screener_mode) {
-            screenerModeEl.textContent = `🤖 AUTO → ${formatMode(config.active_screener_mode)}`;
+        let displayMode = config.screener_mode || 'auto';
+        let activeMode = config.active_screener_mode;
+
+        if (config.screener_mode === 'auto' && activeMode) {
+            // AUTO mode: show what it selected
+            const strategyInfo = getStrategyInfo(activeMode);
+            const typeColor = strategyInfo.type === 'Bull' ? '#10b981' :
+                             strategyInfo.type === 'Bear' ? '#ef4444' :
+                             strategyInfo.type === 'Sideways' ? '#fbbf24' : '#9ca3af';
+
+            screenerModeEl.innerHTML = `
+                🤖 AUTO → ${strategyInfo.name}
+                <span style="background: ${typeColor}; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.7em; margin-left: 5px;">${strategyInfo.type}</span>
+                <span title="${strategyInfo.desc}" style="cursor: help; margin-left: 5px; opacity: 0.7;">ⓘ</span>
+            `;
         } else {
-            screenerModeEl.textContent = formatMode(config.screener_mode || 'auto');
+            // Manual mode selected
+            const strategyInfo = getStrategyInfo(displayMode);
+            const typeColor = strategyInfo.type === 'Bull' ? '#10b981' :
+                             strategyInfo.type === 'Bear' ? '#ef4444' :
+                             strategyInfo.type === 'Sideways' ? '#fbbf24' : '#9ca3af';
+
+            screenerModeEl.innerHTML = `
+                ${strategyInfo.name}
+                <span style="background: ${typeColor}; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.7em; margin-left: 5px;">${strategyInfo.type}</span>
+                <span title="${strategyInfo.desc}" style="cursor: help; margin-left: 5px; opacity: 0.7;">ⓘ</span>
+            `;
         }
     }
 

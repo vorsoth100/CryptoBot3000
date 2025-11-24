@@ -5,7 +5,7 @@ Scans coins for trading opportunities based on different strategies
 
 import logging
 from typing import Dict, List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 import pandas as pd
 from src.signals import SignalGenerator
 
@@ -76,7 +76,7 @@ class MarketScreener:
         # Track the selected mode in bot instance
         if self.bot:
             self.bot.current_screener_mode = mode
-            self.bot.last_screener_mode_update = datetime.now()
+            self.bot.last_screener_mode_update = datetime.now(timezone.utc)
 
         coins = self.config.get("screener_coins", [])
 
