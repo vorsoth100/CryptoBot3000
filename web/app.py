@@ -1557,6 +1557,27 @@ def bot_health_check():
         if include_recommendations:
             health_report["recommendations"] = []
 
+        # === FORCE FRESH DATA COLLECTION ===
+        # Health check should analyze CURRENT state, not cached data
+        logger.info("Health check: Forcing fresh data collection from bot...")
+
+        # Force bot to refresh its Fear & Greed Index
+        try:
+            if bot and hasattr(bot, 'data_collector'):
+                bot.data_collector.get_fear_greed_index(use_cache=False)
+        except Exception as e:
+            logger.warning(f"Could not refresh Fear & Greed: {e}")
+
+        # Force bot to refresh current prices for all positions
+        try:
+            if bot and hasattr(bot, 'risk_manager'):
+                positions = bot.risk_manager.get_all_positions()
+                for pos in positions:
+                    if hasattr(bot, 'data_collector'):
+                        bot.data_collector.get_current_price(pos['product_id'], use_cache=False)
+        except Exception as e:
+            logger.warning(f"Could not refresh position prices: {e}")
+
         # === CHECK 1: Bot Running State ===
         if not bot or not bot.running:
             health_report["issues"].append({
@@ -1774,21 +1795,28 @@ def bot_health_check():
                             screener_time = screener_time.replace(tzinfo=None)
                         age_minutes = (datetime.now() - screener_time).total_seconds() / 60
 
-                        if age_minutes > 120:  # 2 hours old
+                        # Dynamic threshold based on bot's check interval
+                        check_interval_sec = config.get('check_interval_sec', 3600)
+                        check_interval_minutes = check_interval_sec / 60
+                        # Warn if data is older than 2x the check interval (gives buffer for current cycle)
+                        threshold_minutes = check_interval_minutes * 2.5
+
+                        if age_minutes > threshold_minutes:
                             health_report["warnings"].append({
                                 "severity": "WARNING",
                                 "category": "Data Freshness",
-                                "issue": f"Screener data is {age_minutes/60:.1f} hours old",
-                                "impact": "Trading on stale signals",
+                                "issue": f"Screener data is {age_minutes/60:.1f} hours old (>{threshold_minutes/60:.1f} hours)",
+                                "impact": "May be waiting for next bot check cycle or bot may be stuck",
                                 "current_value": f"{age_minutes/60:.1f} hours",
-                                "expected_value": "<2 hours"
+                                "expected_value": f"<{threshold_minutes/60:.1f} hours (check interval: {check_interval_minutes:.0f} min)",
+                                "note": f"Bot runs every {check_interval_minutes:.0f} minutes. Data age beyond 2.5x interval suggests bot may be stuck."
                             })
                             if health_report["overall_health"] == "OK":
                                 health_report["overall_health"] = "WARNING"
                         else:
                             health_report["ok_checks"].append({
                                 "category": "Data Freshness",
-                                "check": f"Screener data recent ({age_minutes:.0f} minutes old)"
+                                "check": f"Screener data recent ({age_minutes:.0f} minutes old, threshold: {threshold_minutes:.0f} min)"
                             })
 
                     # Check signal quality
@@ -1971,21 +1999,36 @@ def bot_health_check():
                             claude_time = claude_time.replace(tzinfo=None)
                         age_hours = (datetime.now() - claude_time).total_seconds() / 3600
 
-                        if age_hours > 4:
+                        # Dynamic threshold based on Claude analysis schedule
+                        claude_schedule = config.get('claude_analysis_schedule', 'six_hourly')
+                        schedule_to_hours = {
+                            'hourly': 1,
+                            'two_hourly': 2,
+                            'four_hourly': 4,
+                            'six_hourly': 6,
+                            'twice_daily': 12,
+                            'daily': 24
+                        }
+                        expected_interval_hours = schedule_to_hours.get(claude_schedule, 6)
+                        # Warn if data is older than 1.5x the scheduled interval
+                        threshold_hours = expected_interval_hours * 1.5
+
+                        if age_hours > threshold_hours:
                             health_report["warnings"].append({
                                 "severity": "WARNING",
                                 "category": "AI Analysis",
-                                "issue": f"Claude analysis is {age_hours:.1f} hours old",
-                                "impact": "Trading decisions based on outdated AI analysis",
+                                "issue": f"Claude analysis is {age_hours:.1f} hours old (>{threshold_hours:.1f} hours)",
+                                "impact": "May be waiting for next Claude analysis cycle or bot may be stuck",
                                 "current_value": f"{age_hours:.1f} hours",
-                                "expected_value": "<2 hours"
+                                "expected_value": f"<{threshold_hours:.1f} hours (schedule: {claude_schedule}, every {expected_interval_hours}h)",
+                                "note": f"Claude runs {claude_schedule}. Data age beyond 1.5x interval suggests missed cycle."
                             })
                             if health_report["overall_health"] == "OK":
                                 health_report["overall_health"] = "WARNING"
                         else:
                             health_report["ok_checks"].append({
                                 "category": "AI Analysis",
-                                "check": f"Claude analysis recent ({age_hours:.1f} hours old)"
+                                "check": f"Claude analysis recent ({age_hours:.1f} hours old, threshold: {threshold_hours:.1f}h)"
                             })
             else:
                 health_report["warnings"].append({
