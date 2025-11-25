@@ -1882,16 +1882,41 @@ def bot_health_check():
             if hasattr(bot, 'risk_manager'):
                 rm = bot.risk_manager
                 initial_capital = rm.initial_capital
-                current_capital = rm.current_capital
-                total_drawdown_pct = ((current_capital - initial_capital) / initial_capital) * 100
+                current_cash = rm.current_capital
+
+                # CRITICAL FIX: Calculate total account value including open positions
+                positions = rm.get_all_positions()
+                total_position_value = 0.0
+
+                if positions:
+                    for pos in positions:
+                        product_id = pos['product_id']
+                        quantity = pos['quantity']
+
+                        # Get current price for this position
+                        current_price = bot.data_collector.get_current_price(product_id)
+                        if current_price:
+                            position_value = quantity * current_price
+                            total_position_value += position_value
+
+                # Total account value = cash + position values
+                total_account_value = current_cash + total_position_value
+                total_drawdown_pct = ((total_account_value - initial_capital) / initial_capital) * 100
+
+                # Build detailed breakdown
+                breakdown_text = f"Cash: ${current_cash:.2f}"
+                if positions:
+                    breakdown_text += f" + Positions: ${total_position_value:.2f} = Total: ${total_account_value:.2f}"
+                else:
+                    breakdown_text += f" (no open positions)"
 
                 if total_drawdown_pct < -20:
                     health_report["issues"].append({
                         "severity": "CRITICAL",
                         "category": "Account Health",
-                        "issue": f"Account down {abs(total_drawdown_pct):.1f}% from initial capital",
+                        "issue": f"Total account down {abs(total_drawdown_pct):.1f}% from initial capital",
                         "impact": "Significant capital loss",
-                        "current_value": f"${current_capital:.2f}",
+                        "current_value": breakdown_text,
                         "initial_value": f"${initial_capital:.2f}"
                     })
                     health_report["overall_health"] = "CRITICAL"
@@ -1904,9 +1929,9 @@ def bot_health_check():
                     health_report["warnings"].append({
                         "severity": "WARNING",
                         "category": "Account Health",
-                        "issue": f"Account down {abs(total_drawdown_pct):.1f}% from initial capital",
+                        "issue": f"Total account down {abs(total_drawdown_pct):.1f}% from initial capital",
                         "impact": "Notable capital loss",
-                        "current_value": f"${current_capital:.2f}",
+                        "current_value": breakdown_text,
                         "initial_value": f"${initial_capital:.2f}"
                     })
                     if health_report["overall_health"] == "OK":
@@ -1919,12 +1944,12 @@ def bot_health_check():
                 elif total_drawdown_pct > 5:
                     health_report["ok_checks"].append({
                         "category": "Account Health",
-                        "check": f"Account profitable: +{total_drawdown_pct:.1f}% (${current_capital:.2f})"
+                        "check": f"Total account profitable: +{total_drawdown_pct:.1f}% ({breakdown_text})"
                     })
                 else:
                     health_report["ok_checks"].append({
                         "category": "Account Health",
-                        "check": f"Account near break-even: {total_drawdown_pct:+.1f}% (${current_capital:.2f})"
+                        "check": f"Total account near break-even: {total_drawdown_pct:+.1f}% ({breakdown_text})"
                     })
         except Exception as e:
             logger.error(f"Account health check error: {e}")
