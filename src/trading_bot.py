@@ -23,6 +23,7 @@ from src.claude_analyst import ClaudeAnalyst
 from src.news_sentiment import NewsSentiment
 from src.coingecko_data import CoinGeckoCollector
 from src.telegram_bot import TelegramNotifier
+from src.trade_validator import TradeValidator
 from src.utils import setup_logging
 
 
@@ -71,9 +72,14 @@ class TradingBot:
         self.risk_manager = RiskManager(self.config, self.news_sentiment)
         self.performance_tracker = PerformanceTracker(self.config)
         self.telegram = TelegramNotifier(self.config)
+        self.trade_validator = TradeValidator(self.config, self.logger)
 
         # Timezone for timestamps
         self.timezone = pytz.timezone('US/Eastern')
+
+        # Store latest screener results for validation
+        self.latest_screener_results = None
+        self.latest_market_data = None
 
         # Bot state
         self.running = False
@@ -415,6 +421,14 @@ class TradingBot:
         # Get BTC dominance
         btc_dominance = self.data_collector.get_btc_dominance()
 
+        # ===== STORE MARKET DATA FOR VALIDATION =====
+        # Critical: Validator needs Fear & Greed to prevent bull trades in bear markets
+        self.latest_market_data = {
+            'fear_greed_index': fear_greed if fear_greed else 50,
+            'btc_dominance': btc_dominance if btc_dominance else 0
+        }
+        # ===== END STORAGE =====
+
         # Get news sentiment for screener results and key coins
         news_sentiment_data = {}
         if self.config.get("news_sentiment_enabled", False):
@@ -531,6 +545,11 @@ class TradingBot:
 
             # Save screener results to file for web dashboard
             self._save_screener_results(opportunities)
+
+            # ===== STORE SCREENER RESULTS FOR VALIDATION =====
+            # Critical: Validator needs this to prevent buying SELL signals
+            self.latest_screener_results = {'opportunities': opportunities}
+            # ===== END STORAGE =====
 
             if not opportunities:
                 self.logger.info("No opportunities found")
@@ -678,6 +697,34 @@ class TradingBot:
                 if not balance:
                     self.logger.error("Could not get USD balance")
                     return
+
+            # ===== CRITICAL VALIDATION LAYER =====
+            # This prevents buying STRONG_SELL signals (SUI, ETH, XRP disaster)
+            is_valid, reason = self.trade_validator.validate_trade(
+                action='buy',
+                product_id=product_id,
+                recommendation=recommendation,
+                screener_data=self.latest_screener_results,
+                market_data=self.latest_market_data,
+                account_size=balance
+            )
+
+            if not is_valid:
+                self.logger.error(f"🛑 TRADE BLOCKED BY VALIDATOR: {reason}")
+                self.logger.error(f"🛑 Prevented buying {product_id} - {reason}")
+
+                # Send Telegram alert about blocked trade
+                if self.telegram:
+                    self.telegram.notify_error(
+                        f"🛑 Trade Validation Failed\n"
+                        f"Coin: {product_id}\n"
+                        f"Reason: {reason}\n"
+                        f"This trade was automatically blocked to protect your capital."
+                    )
+                return
+            else:
+                self.logger.info(f"✓ Trade validation passed: {reason}")
+            # ===== END VALIDATION =====
 
             # Calculate position size
             position_size_usd = self.risk_manager.calculate_position_size_usd(balance)
