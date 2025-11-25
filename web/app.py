@@ -1768,7 +1768,10 @@ def bot_health_check():
                     # Check timestamp - should be recent
                     screener_time_str = screener_data.get('timestamp', '')
                     if screener_time_str:
-                        screener_time = datetime.fromisoformat(screener_time_str.replace('EST', '').strip())
+                        # Parse timestamp and make timezone-naive for comparison
+                        screener_time = datetime.fromisoformat(screener_time_str.replace('EST', '').replace('UTC', '').strip())
+                        if screener_time.tzinfo is not None:
+                            screener_time = screener_time.replace(tzinfo=None)
                         age_minutes = (datetime.now() - screener_time).total_seconds() / 60
 
                         if age_minutes > 120:  # 2 hours old
@@ -1962,7 +1965,10 @@ def bot_health_check():
                     claude_data = json.load(f)
                     timestamp_str = claude_data.get('timestamp', '')
                     if timestamp_str:
-                        claude_time = datetime.fromisoformat(timestamp_str.replace('EST', '').strip())
+                        # Parse timestamp and make timezone-naive for comparison
+                        claude_time = datetime.fromisoformat(timestamp_str.replace('EST', '').replace('UTC', '').strip())
+                        if claude_time.tzinfo is not None:
+                            claude_time = claude_time.replace(tzinfo=None)
                         age_hours = (datetime.now() - claude_time).total_seconds() / 3600
 
                         if age_hours > 4:
