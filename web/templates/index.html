@@ -742,6 +742,69 @@
 
         <!-- Debug Tab -->
         <div id="debug-tab" class="tab-content">
+            <!-- Bot Health Check -->
+            <div class="card" style="border-left: 4px solid #10b981;">
+                <h2>🏥 Bot Health Check</h2>
+                <p style="color: #666; font-size: 0.9em; margin-bottom: 15px;">
+                    <strong>Automated consistency check:</strong> Analyzes bot configuration, recent trades, AI decisions,
+                    market regime alignment, screener signals, and open positions to identify logic conflicts and performance issues.
+                </p>
+
+                <div class="controls" style="margin-bottom: 15px;">
+                    <label style="margin-right: 10px;">Time Range:</label>
+                    <select id="health-check-time-range" style="margin-right: 15px; padding: 5px;">
+                        <option value="1">Last 1 hour</option>
+                        <option value="6" selected>Last 6 hours</option>
+                        <option value="12">Last 12 hours</option>
+                        <option value="24">Last 24 hours</option>
+                    </select>
+
+                    <label style="margin-right: 10px;">Output Mode:</label>
+                    <select id="health-check-output-mode" style="margin-right: 15px; padding: 5px;">
+                        <option value="recommendations" selected>Analysis + Recommendations</option>
+                        <option value="display">Display Only</option>
+                    </select>
+
+                    <button class="btn btn-success" onclick="runHealthCheck()">🔍 Run Health Check</button>
+                </div>
+
+                <div id="health-check-status" style="margin-bottom: 10px;"></div>
+
+                <!-- Health Check Results -->
+                <div id="health-check-results" style="display: none;">
+                    <!-- Overall Health Badge -->
+                    <div id="health-overall-badge" style="padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center;">
+                        <div style="font-size: 2em; margin-bottom: 5px;" id="health-overall-icon">⏳</div>
+                        <div style="font-size: 1.5em; font-weight: bold;" id="health-overall-status">Checking...</div>
+                        <div style="font-size: 0.9em; opacity: 0.8; margin-top: 5px;" id="health-overall-summary"></div>
+                    </div>
+
+                    <!-- Critical Issues -->
+                    <div id="health-critical-section" style="display: none; margin-bottom: 20px;">
+                        <h3 style="color: #ef4444; margin-bottom: 10px;">🔴 Critical Issues</h3>
+                        <div id="health-critical-list"></div>
+                    </div>
+
+                    <!-- Warnings -->
+                    <div id="health-warnings-section" style="display: none; margin-bottom: 20px;">
+                        <h3 style="color: #f59e0b; margin-bottom: 10px;">🟡 Warnings</h3>
+                        <div id="health-warnings-list"></div>
+                    </div>
+
+                    <!-- Recommendations -->
+                    <div id="health-recommendations-section" style="display: none; margin-bottom: 20px;">
+                        <h3 style="color: #3b82f6; margin-bottom: 10px;">💡 Recommendations</h3>
+                        <div id="health-recommendations-list"></div>
+                    </div>
+
+                    <!-- OK Checks -->
+                    <div id="health-ok-section" style="display: none; margin-bottom: 20px;">
+                        <h3 style="color: #10b981; margin-bottom: 10px;">✅ Passing Checks</h3>
+                        <div id="health-ok-list"></div>
+                    </div>
+                </div>
+            </div>
+
             <div class="card">
                 <h2>🧠 Intelligence Export</h2>
                 <p style="color: #666; font-size: 0.9em; margin-bottom: 15px;">

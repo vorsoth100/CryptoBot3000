@@ -2931,6 +2931,187 @@ document.addEventListener('DOMContentLoaded', function() {
     loadMarketRegimeChart();
 });
 
+// === Bot Health Check Functions ===
+
+async function runHealthCheck() {
+    const statusDiv = document.getElementById('health-check-status');
+    const resultsDiv = document.getElementById('health-check-results');
+
+    const timeRange = document.getElementById('health-check-time-range').value;
+    const outputMode = document.getElementById('health-check-output-mode').value;
+    const includeRecommendations = (outputMode === 'recommendations');
+
+    statusDiv.innerHTML = '<span style="color: #ffa726;">⏳ Running health check...</span>';
+    resultsDiv.style.display = 'none';
+
+    try {
+        const response = await fetch('/api/debug/health-check', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                time_range: timeRange,
+                include_recommendations: includeRecommendations
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('Health check failed');
+        }
+
+        const health = await response.json();
+
+        if (health.error) {
+            statusDiv.innerHTML = `<span style="color: #f44336;">❌ Error: ${health.error}</span>`;
+            return;
+        }
+
+        // Display results
+        displayHealthCheckResults(health, includeRecommendations);
+        statusDiv.innerHTML = `<span style="color: #4caf50;">✅ Health check completed (${timeRange} hours analyzed)</span>`;
+
+    } catch (error) {
+        statusDiv.innerHTML = `<span style="color: #f44336;">❌ Error: ${error.message}</span>`;
+        console.error('Health check error:', error);
+    }
+}
+
+function displayHealthCheckResults(health, showRecommendations) {
+    const resultsDiv = document.getElementById('health-check-results');
+
+    // Update overall health badge
+    const overallBadge = document.getElementById('health-overall-badge');
+    const overallIcon = document.getElementById('health-overall-icon');
+    const overallStatus = document.getElementById('health-overall-status');
+    const overallSummary = document.getElementById('health-overall-summary');
+
+    const summary = health.summary || {};
+    const criticalCount = summary.critical_issues || 0;
+    const warningCount = summary.warnings || 0;
+    const okCount = summary.ok_checks || 0;
+
+    // Set badge appearance based on overall health
+    if (health.overall_health === 'CRITICAL') {
+        overallBadge.style.background = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
+        overallBadge.style.color = 'white';
+        overallIcon.textContent = '🔴';
+        overallStatus.textContent = 'CRITICAL';
+    } else if (health.overall_health === 'WARNING') {
+        overallBadge.style.background = 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)';
+        overallBadge.style.color = 'white';
+        overallIcon.textContent = '🟡';
+        overallStatus.textContent = 'WARNING';
+    } else if (health.overall_health === 'OK') {
+        overallBadge.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+        overallBadge.style.color = 'white';
+        overallIcon.textContent = '✅';
+        overallStatus.textContent = 'HEALTHY';
+    } else {
+        overallBadge.style.background = '#6b7280';
+        overallBadge.style.color = 'white';
+        overallIcon.textContent = '❓';
+        overallStatus.textContent = 'ERROR';
+    }
+
+    overallSummary.textContent = `${criticalCount} critical, ${warningCount} warnings, ${okCount} checks passed`;
+
+    // Display critical issues
+    const criticalSection = document.getElementById('health-critical-section');
+    const criticalList = document.getElementById('health-critical-list');
+    if (health.issues && health.issues.length > 0) {
+        criticalList.innerHTML = health.issues.map(issue => {
+            return `
+                <div style="background: rgba(239, 68, 68, 0.1); border-left: 4px solid #ef4444; padding: 12px; margin-bottom: 10px; border-radius: 4px;">
+                    <div style="font-weight: bold; margin-bottom: 5px;">
+                        <span style="color: #ef4444;">⚠️</span> ${issue.category}: ${issue.issue}
+                    </div>
+                    <div style="color: #666; font-size: 0.9em; margin-bottom: 3px;">
+                        <strong>Impact:</strong> ${issue.impact}
+                    </div>
+                    ${issue.current_value ? `<div style="color: #666; font-size: 0.9em;">
+                        <strong>Current:</strong> ${issue.current_value}
+                        ${issue.expected_value ? ` | <strong>Expected:</strong> ${issue.expected_value}` : ''}
+                    </div>` : ''}
+                </div>
+            `;
+        }).join('');
+        criticalSection.style.display = 'block';
+    } else {
+        criticalSection.style.display = 'none';
+    }
+
+    // Display warnings
+    const warningsSection = document.getElementById('health-warnings-section');
+    const warningsList = document.getElementById('health-warnings-list');
+    if (health.warnings && health.warnings.length > 0) {
+        warningsList.innerHTML = health.warnings.map(warning => {
+            return `
+                <div style="background: rgba(245, 158, 11, 0.1); border-left: 4px solid #f59e0b; padding: 12px; margin-bottom: 10px; border-radius: 4px;">
+                    <div style="font-weight: bold; margin-bottom: 5px;">
+                        <span style="color: #f59e0b;">⚠</span> ${warning.category}: ${warning.issue}
+                    </div>
+                    <div style="color: #666; font-size: 0.9em; margin-bottom: 3px;">
+                        <strong>Impact:</strong> ${warning.impact}
+                    </div>
+                    ${warning.current_value ? `<div style="color: #666; font-size: 0.9em;">
+                        <strong>Current:</strong> ${warning.current_value}
+                        ${warning.recommended_value || warning.target_value ?
+                            ` | <strong>Recommended:</strong> ${warning.recommended_value || warning.target_value}` : ''}
+                    </div>` : ''}
+                    ${warning.details ? `<div style="color: #666; font-size: 0.85em; margin-top: 5px;">
+                        ${Array.isArray(warning.details) ? warning.details.join(', ') : warning.details}
+                    </div>` : ''}
+                </div>
+            `;
+        }).join('');
+        warningsSection.style.display = 'block';
+    } else {
+        warningsSection.style.display = 'none';
+    }
+
+    // Display recommendations
+    const recommendationsSection = document.getElementById('health-recommendations-section');
+    const recommendationsList = document.getElementById('health-recommendations-list');
+    if (showRecommendations && health.recommendations && health.recommendations.length > 0) {
+        recommendationsList.innerHTML = health.recommendations.map((rec, index) => {
+            const priorityColor = rec.priority === 'CRITICAL' ? '#ef4444' :
+                                  rec.priority === 'HIGH' ? '#f59e0b' : '#3b82f6';
+            return `
+                <div style="background: rgba(59, 130, 246, 0.1); border-left: 4px solid #3b82f6; padding: 12px; margin-bottom: 10px; border-radius: 4px;">
+                    <div style="font-weight: bold; margin-bottom: 5px;">
+                        <span style="background: ${priorityColor}; color: white; padding: 2px 8px; border-radius: 3px; font-size: 0.75em; margin-right: 5px;">
+                            ${rec.priority}
+                        </span>
+                        ${rec.action}
+                    </div>
+                </div>
+            `;
+        }).join('');
+        recommendationsSection.style.display = 'block';
+    } else {
+        recommendationsSection.style.display = 'none';
+    }
+
+    // Display OK checks
+    const okSection = document.getElementById('health-ok-section');
+    const okList = document.getElementById('health-ok-list');
+    if (health.ok_checks && health.ok_checks.length > 0) {
+        okList.innerHTML = health.ok_checks.map(check => {
+            return `
+                <div style="background: rgba(16, 185, 129, 0.1); border-left: 4px solid #10b981; padding: 10px; margin-bottom: 8px; border-radius: 4px; font-size: 0.9em;">
+                    <span style="color: #10b981;">✓</span> <strong>${check.category}:</strong> ${check.check}
+                </div>
+            `;
+        }).join('');
+        okSection.style.display = 'block';
+    } else {
+        okSection.style.display = 'none';
+    }
+
+    resultsDiv.style.display = 'block';
+}
+
 // === Intelligence Export Functions ===
 
 let intelligenceExportData = null;

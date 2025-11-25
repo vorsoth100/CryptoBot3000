@@ -1528,6 +1528,468 @@ def _convert_to_markdown(data: dict) -> str:
     return '\n'.join(md)
 
 
+@app.route('/api/debug/health-check', methods=['POST'])
+def bot_health_check():
+    """
+    Automated bot health check - analyzes logic consistency and performance
+    Checks last N hours of data for problems, strategy alignment, and trade quality
+    """
+    try:
+        data = request.get_json() or {}
+        time_range_hours = int(data.get('time_range', 6))  # Default 6 hours
+        include_recommendations = data.get('include_recommendations', True)
+
+        from datetime import timedelta
+        import logging
+        logger = logging.getLogger("CryptoBot.HealthCheck")
+
+        cutoff_time = datetime.now() - timedelta(hours=time_range_hours)
+
+        health_report = {
+            "timestamp": datetime.now(EASTERN).strftime('%Y-%m-%d %H:%M:%S %Z'),
+            "time_range_hours": time_range_hours,
+            "overall_health": "OK",  # Will be updated to WARNING or CRITICAL
+            "issues": [],
+            "warnings": [],
+            "ok_checks": []
+        }
+
+        if include_recommendations:
+            health_report["recommendations"] = []
+
+        # === CHECK 1: Bot Running State ===
+        if not bot or not bot.running:
+            health_report["issues"].append({
+                "severity": "CRITICAL",
+                "category": "Bot State",
+                "issue": "Bot is not running",
+                "impact": "No trading activity possible"
+            })
+            health_report["overall_health"] = "CRITICAL"
+            if include_recommendations:
+                health_report["recommendations"].append({
+                    "priority": "HIGH",
+                    "action": "Start the bot from the Controls tab"
+                })
+            return jsonify(health_report)
+
+        # === CHECK 2: Configuration Sanity ===
+        try:
+            config = bot.config
+
+            # Check market regime vs strategy alignment
+            fear_greed = bot.data_collector.get_fear_greed_index()
+            if fear_greed:
+                fg_value = fear_greed.get('value', 50)
+                screener_mode = config.get('screener_mode', 'auto')
+
+                # Bear market (FG < 45) checks
+                if fg_value < 45:
+                    # Should be using mean_reversion/bear_bounce
+                    if screener_mode not in ['mean_reversion', 'bear_bounce', 'auto']:
+                        health_report["issues"].append({
+                            "severity": "CRITICAL",
+                            "category": "Strategy Alignment",
+                            "issue": f"Bear market (FG={fg_value}) but using {screener_mode} strategy",
+                            "impact": "High risk of buying overbought bounces",
+                            "current_value": screener_mode,
+                            "expected_value": "mean_reversion or bear_bounce"
+                        })
+                        health_report["overall_health"] = "CRITICAL"
+                        if include_recommendations:
+                            health_report["recommendations"].append({
+                                "priority": "CRITICAL",
+                                "action": "Switch screener to 'mean_reversion' or set to 'auto' mode"
+                            })
+
+                    # Position size should be conservative
+                    pos_size = config.get('position_size_pct', 0.10)
+                    if pos_size > 0.12:
+                        health_report["warnings"].append({
+                            "severity": "WARNING",
+                            "category": "Risk Management",
+                            "issue": f"Position size {pos_size*100:.0f}% too aggressive for bear market (FG={fg_value})",
+                            "impact": "Higher risk per trade in volatile conditions",
+                            "current_value": f"{pos_size*100:.0f}%",
+                            "recommended_value": "8-10%"
+                        })
+                        if health_report["overall_health"] == "OK":
+                            health_report["overall_health"] = "WARNING"
+                        if include_recommendations:
+                            health_report["recommendations"].append({
+                                "priority": "MEDIUM",
+                                "action": "Reduce position_size_pct to 0.08-0.10 (8-10%) for bear market"
+                            })
+
+                # Bull market (FG > 55) checks
+                elif fg_value > 55:
+                    if screener_mode not in ['momentum', 'breakouts', 'trending', 'auto']:
+                        health_report["warnings"].append({
+                            "severity": "WARNING",
+                            "category": "Strategy Alignment",
+                            "issue": f"Bull market (FG={fg_value}) but using {screener_mode} strategy",
+                            "impact": "Missing momentum opportunities",
+                            "current_value": screener_mode,
+                            "suggested_value": "momentum or breakouts"
+                        })
+                        if health_report["overall_health"] == "OK":
+                            health_report["overall_health"] = "WARNING"
+                        if include_recommendations:
+                            health_report["recommendations"].append({
+                                "priority": "MEDIUM",
+                                "action": "Consider switching to 'momentum' or 'breakouts' strategy"
+                            })
+                else:
+                    health_report["ok_checks"].append({
+                        "category": "Strategy Alignment",
+                        "check": f"Market regime appropriate (FG={fg_value}, Mode={screener_mode})"
+                    })
+
+            # Check if stop loss is reasonable
+            stop_loss = config.get('stop_loss_pct', 0.05)
+            if stop_loss > 0.10:
+                health_report["warnings"].append({
+                    "severity": "WARNING",
+                    "category": "Risk Management",
+                    "issue": f"Stop loss {stop_loss*100:.0f}% is very wide",
+                    "impact": "Large potential losses per trade",
+                    "current_value": f"{stop_loss*100:.0f}%",
+                    "recommended_value": "5-8%"
+                })
+                if health_report["overall_health"] == "OK":
+                    health_report["overall_health"] = "WARNING"
+            elif stop_loss < 0.03:
+                health_report["warnings"].append({
+                    "severity": "WARNING",
+                    "category": "Risk Management",
+                    "issue": f"Stop loss {stop_loss*100:.0f}% is very tight",
+                    "impact": "May get stopped out by normal volatility",
+                    "current_value": f"{stop_loss*100:.0f}%",
+                    "recommended_value": "5-8%"
+                })
+                if health_report["overall_health"] == "OK":
+                    health_report["overall_health"] = "WARNING"
+            else:
+                health_report["ok_checks"].append({
+                    "category": "Risk Management",
+                    "check": f"Stop loss reasonable ({stop_loss*100:.0f}%)"
+                })
+
+        except Exception as e:
+            logger.error(f"Config check error: {e}")
+            health_report["warnings"].append({
+                "severity": "WARNING",
+                "category": "System",
+                "issue": f"Could not validate configuration: {str(e)}"
+            })
+
+        # === CHECK 3: Recent Trade Quality ===
+        try:
+            if hasattr(bot, 'performance_tracker'):
+                all_trades = bot.performance_tracker.get_all_trades()
+                recent_trades = [
+                    t for t in all_trades
+                    if datetime.fromisoformat(t.get("entry_time", "1970-01-01")) >= cutoff_time
+                ]
+
+                if recent_trades:
+                    # Calculate win rate
+                    winning_trades = [t for t in recent_trades if t.get('pnl', 0) > 0]
+                    win_rate = (len(winning_trades) / len(recent_trades)) * 100
+
+                    if win_rate < 30:
+                        health_report["issues"].append({
+                            "severity": "CRITICAL",
+                            "category": "Trade Quality",
+                            "issue": f"Win rate very low: {win_rate:.1f}% ({len(winning_trades)}/{len(recent_trades)} trades)",
+                            "impact": "Strategy not working in current market",
+                            "current_value": f"{win_rate:.1f}%",
+                            "expected_value": ">40%"
+                        })
+                        health_report["overall_health"] = "CRITICAL"
+                        if include_recommendations:
+                            health_report["recommendations"].append({
+                                "priority": "CRITICAL",
+                                "action": "Review strategy alignment, consider switching modes or reducing position size"
+                            })
+                    elif win_rate < 45:
+                        health_report["warnings"].append({
+                            "severity": "WARNING",
+                            "category": "Trade Quality",
+                            "issue": f"Win rate below target: {win_rate:.1f}% ({len(winning_trades)}/{len(recent_trades)} trades)",
+                            "impact": "Suboptimal performance",
+                            "current_value": f"{win_rate:.1f}%",
+                            "target_value": ">45%"
+                        })
+                        if health_report["overall_health"] == "OK":
+                            health_report["overall_health"] = "WARNING"
+                    else:
+                        health_report["ok_checks"].append({
+                            "category": "Trade Quality",
+                            "check": f"Win rate healthy: {win_rate:.1f}% ({len(winning_trades)}/{len(recent_trades)} trades)"
+                        })
+
+                    # Check average loss size
+                    losing_trades = [t for t in recent_trades if t.get('pnl', 0) < 0]
+                    if losing_trades:
+                        avg_loss_pct = sum(t.get('pnl_pct', 0) for t in losing_trades) / len(losing_trades)
+                        if avg_loss_pct < -8:
+                            health_report["warnings"].append({
+                                "severity": "WARNING",
+                                "category": "Risk Management",
+                                "issue": f"Average loss {avg_loss_pct:.1f}% exceeds stop loss",
+                                "impact": "Stops not being honored or slippage issues",
+                                "current_value": f"{avg_loss_pct:.1f}%",
+                                "expected_value": f"~{config.get('stop_loss_pct', 0.05)*-100:.0f}%"
+                            })
+                            if health_report["overall_health"] == "OK":
+                                health_report["overall_health"] = "WARNING"
+                else:
+                    health_report["ok_checks"].append({
+                        "category": "Trade Activity",
+                        "check": f"No trades in last {time_range_hours} hours (waiting for opportunities)"
+                    })
+        except Exception as e:
+            logger.error(f"Trade quality check error: {e}")
+            health_report["warnings"].append({
+                "severity": "WARNING",
+                "category": "System",
+                "issue": f"Could not analyze trade quality: {str(e)}"
+            })
+
+        # === CHECK 4: Screener Signal Quality ===
+        try:
+            screener_file = "data/latest_screener.json"
+            if os.path.exists(screener_file):
+                with open(screener_file, 'r') as f:
+                    screener_data = json.load(f)
+                    opportunities = screener_data.get('opportunities', [])
+
+                    # Check timestamp - should be recent
+                    screener_time_str = screener_data.get('timestamp', '')
+                    if screener_time_str:
+                        screener_time = datetime.fromisoformat(screener_time_str.replace('EST', '').strip())
+                        age_minutes = (datetime.now() - screener_time).total_seconds() / 60
+
+                        if age_minutes > 120:  # 2 hours old
+                            health_report["warnings"].append({
+                                "severity": "WARNING",
+                                "category": "Data Freshness",
+                                "issue": f"Screener data is {age_minutes/60:.1f} hours old",
+                                "impact": "Trading on stale signals",
+                                "current_value": f"{age_minutes/60:.1f} hours",
+                                "expected_value": "<2 hours"
+                            })
+                            if health_report["overall_health"] == "OK":
+                                health_report["overall_health"] = "WARNING"
+                        else:
+                            health_report["ok_checks"].append({
+                                "category": "Data Freshness",
+                                "check": f"Screener data recent ({age_minutes:.0f} minutes old)"
+                            })
+
+                    # Check signal quality
+                    if opportunities:
+                        strong_sells = [o for o in opportunities if 'sell' in o.get('signal', '').lower()]
+                        if strong_sells:
+                            health_report["warnings"].append({
+                                "severity": "WARNING",
+                                "category": "Signal Quality",
+                                "issue": f"Screener found {len(strong_sells)} SELL signals in top results",
+                                "impact": "Limited buy opportunities",
+                                "details": [f"{o['product_id']}: {o['signal']}" for o in strong_sells[:3]]
+                            })
+                            if health_report["overall_health"] == "OK":
+                                health_report["overall_health"] = "WARNING"
+                    else:
+                        health_report["warnings"].append({
+                            "severity": "WARNING",
+                            "category": "Signal Quality",
+                            "issue": "Screener found no opportunities",
+                            "impact": "No trading signals available"
+                        })
+                        if health_report["overall_health"] == "OK":
+                            health_report["overall_health"] = "WARNING"
+        except Exception as e:
+            logger.error(f"Screener check error: {e}")
+
+        # === CHECK 5: Open Positions Risk ===
+        try:
+            if hasattr(bot, 'risk_manager'):
+                positions = bot.risk_manager.get_all_positions()
+
+                if positions:
+                    # Check each position for problems
+                    for pos in positions:
+                        product_id = pos['product_id']
+                        entry_price = pos['entry_price']
+
+                        # Get current price
+                        current_price = bot.data_collector.get_current_price(product_id)
+                        if current_price:
+                            pnl_pct = ((current_price - entry_price) / entry_price) * 100
+
+                            # Check if position is deep underwater
+                            if pnl_pct < -10:
+                                health_report["issues"].append({
+                                    "severity": "CRITICAL",
+                                    "category": "Open Positions",
+                                    "issue": f"{product_id} down {pnl_pct:.1f}% (stop loss should have triggered)",
+                                    "impact": "Position should have been closed by stop loss",
+                                    "current_pnl": f"{pnl_pct:.1f}%"
+                                })
+                                health_report["overall_health"] = "CRITICAL"
+                                if include_recommendations:
+                                    health_report["recommendations"].append({
+                                        "priority": "CRITICAL",
+                                        "action": f"Manually close {product_id} position - stop loss may have failed"
+                                    })
+
+                            # Check if screener now says SELL
+                            screener_file = "data/latest_screener.json"
+                            if os.path.exists(screener_file):
+                                with open(screener_file, 'r') as f:
+                                    screener_data = json.load(f)
+                                    for opp in screener_data.get('opportunities', []):
+                                        if opp.get('product_id') == product_id:
+                                            signal = opp.get('signal', '').lower()
+                                            if 'sell' in signal:
+                                                health_report["warnings"].append({
+                                                    "severity": "WARNING",
+                                                    "category": "Open Positions",
+                                                    "issue": f"{product_id} now has {signal.upper()} signal",
+                                                    "impact": "Holding position contradicting current analysis",
+                                                    "current_pnl": f"{pnl_pct:.1f}%",
+                                                    "signal": signal
+                                                })
+                                                if health_report["overall_health"] == "OK":
+                                                    health_report["overall_health"] = "WARNING"
+                                                if include_recommendations:
+                                                    health_report["recommendations"].append({
+                                                        "priority": "MEDIUM",
+                                                        "action": f"Consider closing {product_id} - signals turned bearish"
+                                                    })
+                else:
+                    health_report["ok_checks"].append({
+                        "category": "Open Positions",
+                        "check": "No open positions (no position risk)"
+                    })
+        except Exception as e:
+            logger.error(f"Position risk check error: {e}")
+
+        # === CHECK 6: Account Health ===
+        try:
+            if hasattr(bot, 'risk_manager'):
+                rm = bot.risk_manager
+                initial_capital = rm.initial_capital
+                current_capital = rm.current_capital
+                total_drawdown_pct = ((current_capital - initial_capital) / initial_capital) * 100
+
+                if total_drawdown_pct < -20:
+                    health_report["issues"].append({
+                        "severity": "CRITICAL",
+                        "category": "Account Health",
+                        "issue": f"Account down {abs(total_drawdown_pct):.1f}% from initial capital",
+                        "impact": "Significant capital loss",
+                        "current_value": f"${current_capital:.2f}",
+                        "initial_value": f"${initial_capital:.2f}"
+                    })
+                    health_report["overall_health"] = "CRITICAL"
+                    if include_recommendations:
+                        health_report["recommendations"].append({
+                            "priority": "CRITICAL",
+                            "action": "Consider stopping bot and reviewing strategy - significant losses"
+                        })
+                elif total_drawdown_pct < -10:
+                    health_report["warnings"].append({
+                        "severity": "WARNING",
+                        "category": "Account Health",
+                        "issue": f"Account down {abs(total_drawdown_pct):.1f}% from initial capital",
+                        "impact": "Notable capital loss",
+                        "current_value": f"${current_capital:.2f}",
+                        "initial_value": f"${initial_capital:.2f}"
+                    })
+                    if health_report["overall_health"] == "OK":
+                        health_report["overall_health"] = "WARNING"
+                    if include_recommendations:
+                        health_report["recommendations"].append({
+                            "priority": "MEDIUM",
+                            "action": "Review strategy and risk settings - account in drawdown"
+                        })
+                elif total_drawdown_pct > 5:
+                    health_report["ok_checks"].append({
+                        "category": "Account Health",
+                        "check": f"Account profitable: +{total_drawdown_pct:.1f}% (${current_capital:.2f})"
+                    })
+                else:
+                    health_report["ok_checks"].append({
+                        "category": "Account Health",
+                        "check": f"Account near break-even: {total_drawdown_pct:+.1f}% (${current_capital:.2f})"
+                    })
+        except Exception as e:
+            logger.error(f"Account health check error: {e}")
+
+        # === CHECK 7: Claude AI Analysis Freshness ===
+        try:
+            claude_file = "data/latest_claude_analysis.json"
+            if os.path.exists(claude_file):
+                with open(claude_file, 'r') as f:
+                    claude_data = json.load(f)
+                    timestamp_str = claude_data.get('timestamp', '')
+                    if timestamp_str:
+                        claude_time = datetime.fromisoformat(timestamp_str.replace('EST', '').strip())
+                        age_hours = (datetime.now() - claude_time).total_seconds() / 3600
+
+                        if age_hours > 4:
+                            health_report["warnings"].append({
+                                "severity": "WARNING",
+                                "category": "AI Analysis",
+                                "issue": f"Claude analysis is {age_hours:.1f} hours old",
+                                "impact": "Trading decisions based on outdated AI analysis",
+                                "current_value": f"{age_hours:.1f} hours",
+                                "expected_value": "<2 hours"
+                            })
+                            if health_report["overall_health"] == "OK":
+                                health_report["overall_health"] = "WARNING"
+                        else:
+                            health_report["ok_checks"].append({
+                                "category": "AI Analysis",
+                                "check": f"Claude analysis recent ({age_hours:.1f} hours old)"
+                            })
+            else:
+                health_report["warnings"].append({
+                    "severity": "WARNING",
+                    "category": "AI Analysis",
+                    "issue": "No Claude analysis available",
+                    "impact": "Missing AI-powered market assessment"
+                })
+                if health_report["overall_health"] == "OK":
+                    health_report["overall_health"] = "WARNING"
+        except Exception as e:
+            logger.error(f"Claude check error: {e}")
+
+        # Add summary counts
+        health_report["summary"] = {
+            "critical_issues": len(health_report["issues"]),
+            "warnings": len(health_report["warnings"]),
+            "ok_checks": len(health_report["ok_checks"]),
+            "total_checks": len(health_report["issues"]) + len(health_report["warnings"]) + len(health_report["ok_checks"])
+        }
+
+        return jsonify(health_report)
+
+    except Exception as e:
+        import traceback
+        logger = logging.getLogger("CryptoBot.HealthCheck")
+        logger.error(f"Health check failed: {e}")
+        logger.error(traceback.format_exc())
+        return jsonify({
+            "overall_health": "ERROR",
+            "error": str(e),
+            "timestamp": datetime.now(EASTERN).strftime('%Y-%m-%d %H:%M:%S %Z')
+        }), 500
+
+
 @app.route('/api/tradingview/webhook', methods=['POST'])
 def tradingview_webhook():
     """
