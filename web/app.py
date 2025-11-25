@@ -1557,9 +1557,18 @@ def bot_health_check():
         if include_recommendations:
             health_report["recommendations"] = []
 
-        # === FORCE FRESH DATA COLLECTION ===
-        # Health check should analyze CURRENT state, not cached data
-        logger.info("Health check: Forcing fresh data collection from bot...")
+        # === FORCE FRESH DATA COLLECTION FROM BOT ===
+        # For remote bots (Pi), we get fresh data from the bot object, not files
+        logger.info("Health check: Getting fresh data from bot object...")
+
+        # Get fresh status from bot (includes last run times)
+        bot_status = None
+        try:
+            if bot and hasattr(bot, 'get_status'):
+                bot_status = bot.get_status()
+                logger.info(f"Got bot status: {bot_status.keys() if bot_status else 'None'}")
+        except Exception as e:
+            logger.warning(f"Could not get bot status: {e}")
 
         # Force bot to refresh its Fear & Greed Index
         try:
@@ -1780,67 +1789,86 @@ def bot_health_check():
 
         # === CHECK 4: Screener Signal Quality ===
         try:
-            screener_file = "data/latest_screener.json"
-            if os.path.exists(screener_file):
-                with open(screener_file, 'r') as f:
-                    screener_data = json.load(f)
-                    opportunities = screener_data.get('opportunities', [])
+            # Get screener data from bot status (for remote Pi bot)
+            screener_last_run = None
+            opportunities = []
 
-                    # Check timestamp - should be recent
-                    screener_time_str = screener_data.get('timestamp', '')
-                    if screener_time_str:
-                        # Parse timestamp and make timezone-naive for comparison
-                        screener_time = datetime.fromisoformat(screener_time_str.replace('EST', '').replace('UTC', '').strip())
-                        if screener_time.tzinfo is not None:
-                            screener_time = screener_time.replace(tzinfo=None)
-                        age_minutes = (datetime.now() - screener_time).total_seconds() / 60
+            if bot_status and 'screener' in bot_status:
+                screener_info = bot_status['screener']
+                screener_last_run_str = screener_info.get('last_run')
+                opportunities = screener_info.get('top_opportunities', [])
 
-                        # Dynamic threshold based on bot's check interval
-                        check_interval_sec = config.get('check_interval_sec', 3600)
-                        check_interval_minutes = check_interval_sec / 60
-                        # Warn if data is older than 2x the check interval (gives buffer for current cycle)
-                        threshold_minutes = check_interval_minutes * 2.5
+                if screener_last_run_str:
+                    try:
+                        # Parse "MM/DD/YYYY, HH:MM:SS AM/PM" format from status
+                        screener_last_run = datetime.strptime(screener_last_run_str, "%m/%d/%Y, %I:%M:%S %p")
+                    except:
+                        # Try ISO format as fallback
+                        try:
+                            screener_last_run = datetime.fromisoformat(screener_last_run_str.replace('EST', '').replace('UTC', '').strip())
+                            if screener_last_run.tzinfo is not None:
+                                screener_last_run = screener_last_run.replace(tzinfo=None)
+                        except Exception as e:
+                            logger.warning(f"Could not parse screener timestamp: {screener_last_run_str}, error: {e}")
 
-                        if age_minutes > threshold_minutes:
-                            health_report["warnings"].append({
-                                "severity": "WARNING",
-                                "category": "Data Freshness",
-                                "issue": f"Screener data is {age_minutes/60:.1f} hours old (>{threshold_minutes/60:.1f} hours)",
-                                "impact": "May be waiting for next bot check cycle or bot may be stuck",
-                                "current_value": f"{age_minutes/60:.1f} hours",
-                                "expected_value": f"<{threshold_minutes/60:.1f} hours (check interval: {check_interval_minutes:.0f} min)",
-                                "note": f"Bot runs every {check_interval_minutes:.0f} minutes. Data age beyond 2.5x interval suggests bot may be stuck."
-                            })
-                            if health_report["overall_health"] == "OK":
-                                health_report["overall_health"] = "WARNING"
-                        else:
-                            health_report["ok_checks"].append({
-                                "category": "Data Freshness",
-                                "check": f"Screener data recent ({age_minutes:.0f} minutes old, threshold: {threshold_minutes:.0f} min)"
-                            })
+            if screener_last_run:
+                age_minutes = (datetime.now() - screener_last_run).total_seconds() / 60
 
-                    # Check signal quality
-                    if opportunities:
-                        strong_sells = [o for o in opportunities if 'sell' in o.get('signal', '').lower()]
-                        if strong_sells:
-                            health_report["warnings"].append({
-                                "severity": "WARNING",
-                                "category": "Signal Quality",
-                                "issue": f"Screener found {len(strong_sells)} SELL signals in top results",
-                                "impact": "Limited buy opportunities",
-                                "details": [f"{o['product_id']}: {o['signal']}" for o in strong_sells[:3]]
-                            })
-                            if health_report["overall_health"] == "OK":
-                                health_report["overall_health"] = "WARNING"
-                    else:
-                        health_report["warnings"].append({
-                            "severity": "WARNING",
-                            "category": "Signal Quality",
-                            "issue": "Screener found no opportunities",
-                            "impact": "No trading signals available"
-                        })
-                        if health_report["overall_health"] == "OK":
-                            health_report["overall_health"] = "WARNING"
+                # Dynamic threshold based on bot's check interval
+                check_interval_sec = config.get('check_interval_sec', 3600)
+                check_interval_minutes = check_interval_sec / 60
+                # Warn if data is older than 2.5x the check interval (gives buffer for current cycle)
+                threshold_minutes = check_interval_minutes * 2.5
+
+                if age_minutes > threshold_minutes:
+                    health_report["warnings"].append({
+                        "severity": "WARNING",
+                        "category": "Data Freshness",
+                        "issue": f"Screener last ran {age_minutes/60:.1f} hours ago (>{threshold_minutes/60:.1f} hours)",
+                        "impact": "May be waiting for next bot check cycle or bot may be stuck",
+                        "current_value": f"{age_minutes/60:.1f} hours ago",
+                        "expected_value": f"<{threshold_minutes/60:.1f} hours (check interval: {check_interval_minutes:.0f} min)",
+                        "note": f"Bot runs every {check_interval_minutes:.0f} minutes. Data age beyond 2.5x interval suggests bot may be stuck."
+                    })
+                    if health_report["overall_health"] == "OK":
+                        health_report["overall_health"] = "WARNING"
+                else:
+                    health_report["ok_checks"].append({
+                        "category": "Data Freshness",
+                        "check": f"Screener ran recently ({age_minutes:.0f} minutes ago, threshold: {threshold_minutes:.0f} min)"
+                    })
+            else:
+                health_report["warnings"].append({
+                    "severity": "WARNING",
+                    "category": "Data Freshness",
+                    "issue": "No screener run time available",
+                    "impact": "Cannot determine if screener is running"
+                })
+                if health_report["overall_health"] == "OK":
+                    health_report["overall_health"] = "WARNING"
+
+            # Check signal quality (regardless of timestamp)
+            if opportunities:
+                strong_sells = [o for o in opportunities if 'sell' in o.get('signal', '').lower()]
+                if strong_sells:
+                    health_report["warnings"].append({
+                        "severity": "WARNING",
+                        "category": "Signal Quality",
+                        "issue": f"Screener found {len(strong_sells)} SELL signals in top results",
+                        "impact": "Limited buy opportunities",
+                        "details": [f"{o.get('product_id', 'Unknown')}: {o.get('signal', 'Unknown')}" for o in strong_sells[:3]]
+                    })
+                    if health_report["overall_health"] == "OK":
+                        health_report["overall_health"] = "WARNING"
+            elif screener_last_run:  # Only warn if we know screener ran but found nothing
+                health_report["warnings"].append({
+                    "severity": "WARNING",
+                    "category": "Signal Quality",
+                    "issue": "Screener found no opportunities",
+                    "impact": "No trading signals available"
+                })
+                if health_report["overall_health"] == "OK":
+                    health_report["overall_health"] = "WARNING"
         except Exception as e:
             logger.error(f"Screener check error: {e}")
 
@@ -1987,55 +2015,66 @@ def bot_health_check():
 
         # === CHECK 7: Claude AI Analysis Freshness ===
         try:
-            claude_file = "data/latest_claude_analysis.json"
-            if os.path.exists(claude_file):
-                with open(claude_file, 'r') as f:
-                    claude_data = json.load(f)
-                    timestamp_str = claude_data.get('timestamp', '')
-                    if timestamp_str:
-                        # Parse timestamp and make timezone-naive for comparison
-                        claude_time = datetime.fromisoformat(timestamp_str.replace('EST', '').replace('UTC', '').strip())
-                        if claude_time.tzinfo is not None:
-                            claude_time = claude_time.replace(tzinfo=None)
-                        age_hours = (datetime.now() - claude_time).total_seconds() / 3600
+            # Get Claude data from bot status (for remote Pi bot)
+            claude_last_run = None
 
-                        # Dynamic threshold based on Claude analysis schedule
-                        claude_schedule = config.get('claude_analysis_schedule', 'six_hourly')
-                        schedule_to_hours = {
-                            'hourly': 1,
-                            'two_hourly': 2,
-                            'four_hourly': 4,
-                            'six_hourly': 6,
-                            'twice_daily': 12,
-                            'daily': 24
-                        }
-                        expected_interval_hours = schedule_to_hours.get(claude_schedule, 6)
-                        # Warn if data is older than 1.5x the scheduled interval
-                        threshold_hours = expected_interval_hours * 1.5
+            if bot_status and 'claude' in bot_status:
+                claude_info = bot_status['claude']
+                claude_last_run_str = claude_info.get('last_run')
 
-                        if age_hours > threshold_hours:
-                            health_report["warnings"].append({
-                                "severity": "WARNING",
-                                "category": "AI Analysis",
-                                "issue": f"Claude analysis is {age_hours:.1f} hours old (>{threshold_hours:.1f} hours)",
-                                "impact": "May be waiting for next Claude analysis cycle or bot may be stuck",
-                                "current_value": f"{age_hours:.1f} hours",
-                                "expected_value": f"<{threshold_hours:.1f} hours (schedule: {claude_schedule}, every {expected_interval_hours}h)",
-                                "note": f"Claude runs {claude_schedule}. Data age beyond 1.5x interval suggests missed cycle."
-                            })
-                            if health_report["overall_health"] == "OK":
-                                health_report["overall_health"] = "WARNING"
-                        else:
-                            health_report["ok_checks"].append({
-                                "category": "AI Analysis",
-                                "check": f"Claude analysis recent ({age_hours:.1f} hours old, threshold: {threshold_hours:.1f}h)"
-                            })
+                if claude_last_run_str:
+                    try:
+                        # Parse "MM/DD/YYYY, HH:MM:SS AM/PM" format from status
+                        claude_last_run = datetime.strptime(claude_last_run_str, "%m/%d/%Y, %I:%M:%S %p")
+                    except:
+                        # Try ISO format as fallback
+                        try:
+                            claude_last_run = datetime.fromisoformat(claude_last_run_str.replace('EST', '').replace('UTC', '').strip())
+                            if claude_last_run.tzinfo is not None:
+                                claude_last_run = claude_last_run.replace(tzinfo=None)
+                        except Exception as e:
+                            logger.warning(f"Could not parse Claude timestamp: {claude_last_run_str}, error: {e}")
+
+            if claude_last_run:
+                age_hours = (datetime.now() - claude_last_run).total_seconds() / 3600
+
+                # Dynamic threshold based on Claude analysis schedule
+                claude_schedule = config.get('claude_analysis_schedule', 'hourly')
+                schedule_to_hours = {
+                    'hourly': 1,
+                    'two_hourly': 2,
+                    'four_hourly': 4,
+                    'six_hourly': 6,
+                    'twice_daily': 12,
+                    'daily': 24
+                }
+                expected_interval_hours = schedule_to_hours.get(claude_schedule, 1)
+                # Warn if data is older than 1.5x the scheduled interval
+                threshold_hours = expected_interval_hours * 1.5
+
+                if age_hours > threshold_hours:
+                    health_report["warnings"].append({
+                        "severity": "WARNING",
+                        "category": "AI Analysis",
+                        "issue": f"Claude last ran {age_hours:.1f} hours ago (>{threshold_hours:.1f} hours)",
+                        "impact": "May be waiting for next Claude analysis cycle or bot may be stuck",
+                        "current_value": f"{age_hours:.1f} hours ago",
+                        "expected_value": f"<{threshold_hours:.1f} hours (schedule: {claude_schedule}, every {expected_interval_hours}h)",
+                        "note": f"Claude runs {claude_schedule}. Data age beyond 1.5x interval suggests missed cycle."
+                    })
+                    if health_report["overall_health"] == "OK":
+                        health_report["overall_health"] = "WARNING"
+                else:
+                    health_report["ok_checks"].append({
+                        "category": "AI Analysis",
+                        "check": f"Claude ran recently ({age_hours:.1f} hours ago, threshold: {threshold_hours:.1f}h)"
+                    })
             else:
                 health_report["warnings"].append({
                     "severity": "WARNING",
                     "category": "AI Analysis",
-                    "issue": "No Claude analysis available",
-                    "impact": "Missing AI-powered market assessment"
+                    "issue": "No Claude run time available",
+                    "impact": "Cannot determine if Claude analysis is running"
                 })
                 if health_report["overall_health"] == "OK":
                     health_report["overall_health"] = "WARNING"
